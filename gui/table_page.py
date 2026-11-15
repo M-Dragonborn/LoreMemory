@@ -4,9 +4,10 @@ from config import PAGE_SIZE
 from gui.dialogs import RowDialog
 from gui.theme import get_palette
 
-class TablePage(ttk.Frame):
+class TablePage(tk.Frame):
     def __init__(self, parent, app, table_name):
-        super().__init__(parent)
+        p = get_palette()
+        super().__init__(parent, bg=p["surface"])
         self.app = app
         self.table_name = table_name
         self.page = 1
@@ -24,41 +25,50 @@ class TablePage(ttk.Frame):
     def setup_ui(self):
         p = get_palette()
 
-        # Top bar: Filter and Action buttons
-        top_bar = ttk.Frame(self, padding=(8, 6))
-        top_bar.pack(fill="x", side="top")
+        # Top bar: Filter and Action buttons with border
+        top_bar = tk.Frame(
+            self, bg=p["panel"], padx=10, pady=8,
+            highlightbackground=p["border"], highlightthickness=1
+        )
+        top_bar.pack(fill="x", side="top", padx=4, pady=4)
 
-        ttk.Label(top_bar, text="Filter:").pack(side="left", padx=(0, 4))
+        tk.Label(top_bar, text="Filter:", bg=p["panel"], fg=p["text"], font=("Segoe UI", 10, "bold")).pack(side="left", padx=(0, 6))
         self.filter_entry = ttk.Entry(top_bar, width=24)
-        self.filter_entry.pack(side="left", padx=(0, 12))
+        self.filter_entry.pack(side="left", padx=(0, 16))
         self.filter_entry.bind("<KeyRelease>", self.on_filter_changed)
 
-        ttk.Button(top_bar, text="Add Row", command=self.on_add_row).pack(side="left", padx=2)
-        ttk.Button(top_bar, text="Edit Selected", command=self.on_edit_row).pack(side="left", padx=2)
-        ttk.Button(top_bar, text="Delete Selected", command=self.on_delete_row).pack(side="left", padx=2)
+        ttk.Button(top_bar, text="Add Row", command=self.on_add_row).pack(side="left", padx=3)
+        ttk.Button(top_bar, text="Edit Selected", command=self.on_edit_row).pack(side="left", padx=3)
+        ttk.Button(top_bar, text="Delete Selected", command=self.on_delete_row).pack(side="left", padx=3)
 
-        # Bottom bar: Paging & Table History
-        bot_bar = ttk.Frame(self, padding=(8, 6))
-        bot_bar.pack(fill="x", side="bottom")
+        # Bottom bar: Paging & Table History with border
+        bot_bar = tk.Frame(
+            self, bg=p["panel"], padx=10, pady=8,
+            highlightbackground=p["border"], highlightthickness=1
+        )
+        bot_bar.pack(fill="x", side="bottom", padx=4, pady=4)
 
         self.prev_btn = ttk.Button(bot_bar, text="‹ Previous", command=self.on_prev_page)
-        self.prev_btn.pack(side="left", padx=2)
+        self.prev_btn.pack(side="left", padx=3)
 
         self.next_btn = ttk.Button(bot_bar, text="Next ›", command=self.on_next_page)
-        self.next_btn.pack(side="left", padx=2)
+        self.next_btn.pack(side="left", padx=3)
 
-        self.page_label = ttk.Label(bot_bar, text="", style="Muted.TLabel")
-        self.page_label.pack(side="left", padx=12)
+        self.page_label = tk.Label(bot_bar, text="", bg=p["panel"], fg=p["muted"], font=("Segoe UI", 9, "bold"))
+        self.page_label.pack(side="left", padx=16)
 
         ttk.Button(
             bot_bar,
             text="Open table history",
             command=lambda: self.app.open_tab("history", self.table_name)
-        ).pack(side="right", padx=2)
+        ).pack(side="right", padx=3)
 
-        # Center: Treeview Grid
-        grid_frame = ttk.Frame(self)
-        grid_frame.pack(fill="both", expand=True)
+        # Center: Treeview Grid enclosed in distinct outline
+        grid_frame = tk.Frame(
+            self, bg=p["surface"],
+            highlightbackground=p["border_dark"], highlightthickness=1
+        )
+        grid_frame.pack(fill="both", expand=True, padx=4, pady=2)
 
         self.tree = ttk.Treeview(grid_frame, selectmode="browse", show="headings")
         v_scroll = ttk.Scrollbar(grid_frame, orient="vertical", command=self.tree.yview)
@@ -96,7 +106,6 @@ class TablePage(ttk.Frame):
         self.rows = rows
         self.total_count = total
 
-        # Setup columns
         self.tree["columns"] = cols
         for c in cols:
             indicator = ""
@@ -105,7 +114,6 @@ class TablePage(ttk.Frame):
             self.tree.heading(c, text=f"{c}{indicator}", command=lambda col=c: self.on_sort(col))
             self.tree.column(c, width=120, minwidth=60)
 
-        # Clear and insert rows
         for item in self.tree.get_children():
             self.tree.delete(item)
 
@@ -113,7 +121,6 @@ class TablePage(ttk.Frame):
             display_vals = ["" if v is None else str(v) for v in r]
             self.tree.insert("", "end", values=display_vals)
 
-        # Update paging controls
         total_pages = max(1, (total + PAGE_SIZE - 1) // PAGE_SIZE)
         self.page_label.config(text=f"Page {self.page} of {total_pages} ({total} rows)")
         self.prev_btn.state(["!disabled" if self.page > 1 else "disabled"])
@@ -173,7 +180,6 @@ class TablePage(ttk.Frame):
         dlg = RowDialog(self, f"Edit Row - {self.table_name}", meta_cols, initial_values=data)
         self.wait_window(dlg)
         if dlg.result is not None:
-            # Filter out pk_col if it's _rowid from the SET clause
             update_data = {k: v for k, v in dlg.result.items() if k != "_rowid"}
             res = self.app.db.update_row(self.table_name, pk_col, pk_val, update_data)
             if res.error:

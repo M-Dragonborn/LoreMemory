@@ -4,9 +4,10 @@ from tkinter import ttk, filedialog, messagebox
 from gui.dialogs import NewTableDialog
 from gui.theme import get_palette
 
-class Sidebar(ttk.Frame):
+class Sidebar(tk.Frame):
     def __init__(self, parent, app):
-        super().__init__(parent)
+        p = get_palette()
+        super().__init__(parent, bg=p["bg"], highlightbackground=p["border_dark"], highlightthickness=1)
         self.app = app
         self.collapsed = False
         self.selected_table = None
@@ -18,16 +19,21 @@ class Sidebar(ttk.Frame):
         p = get_palette()
 
         # Database Header & Menu
-        top_frame = ttk.Frame(self, padding=(10, 10, 10, 6))
-        top_frame.pack(fill="x", side="top")
+        top_frame = tk.Frame(self, bg=p["panel"], padx=10, pady=10, highlightbackground=p["border"], highlightthickness=1)
+        top_frame.pack(fill="x", side="top", padx=4, pady=4)
 
         self.db_menu_btn = tk.Menubutton(
             top_frame,
             text="No Database ▾",
             font=("Segoe UI", 10, "bold"),
-            bg=p["bg"],
+            bg=p["surface"],
             fg=p["text"],
-            relief="flat",
+            relief="solid",
+            bd=1,
+            highlightbackground=p["border_dark"],
+            highlightthickness=1,
+            padx=8,
+            pady=3,
             cursor="hand2"
         )
         self.db_menu = tk.Menu(self.db_menu_btn, tearoff=0)
@@ -37,51 +43,59 @@ class Sidebar(ttk.Frame):
         self.db_menu_btn.config(menu=self.db_menu)
         self.db_menu_btn.pack(side="left")
 
-        # Collapse handle button
         self.collapse_btn = ttk.Button(top_frame, text="‹", width=2, command=self.toggle_collapse)
         self.collapse_btn.pack(side="right")
 
         # Tables Section Header
-        tables_hdr = ttk.Frame(self, padding=(10, 8, 10, 4))
+        tables_hdr = tk.Frame(self, bg=p["bg"], padx=10, pady=8)
         tables_hdr.pack(fill="x", side="top")
 
-        ttk.Label(tables_hdr, text="TABLES", style="Muted.TLabel", font=("Segoe UI", 8, "bold")).pack(side="left")
+        tk.Label(
+            tables_hdr, text="TABLES", bg=p["bg"], fg=p["muted"],
+            font=("Segoe UI", 9, "bold")
+        ).pack(side="left")
+
         self.new_tbl_btn = tk.Label(
-            tables_hdr, text="+", font=("Segoe UI", 11, "bold"),
-            fg=p["accent"], bg=p["bg"], cursor="hand2"
+            tables_hdr, text=" + ", font=("Segoe UI", 12, "bold"),
+            fg=p["accent_text"], bg=p["accent"], cursor="hand2", relief="solid", bd=1
         )
         self.new_tbl_btn.pack(side="right")
         self.new_tbl_btn.bind("<Button-1>", lambda e: self.open_new_table_dialog())
 
-        # Tables list area (using Canvas or Treeview / Listbox)
-        # A Treeview without headings provides clean two-column display: table name and count
-        list_frame = ttk.Frame(self, padding=(6, 0))
+        # Tables list area enclosed with distinct border
+        list_frame = tk.Frame(self, bg=p["bg"], padx=4, pady=2)
         list_frame.pack(fill="both", expand=True)
 
-        self.tree = ttk.Treeview(list_frame, columns=("name", "count"), show="", selectmode="browse")
+        tree_border = tk.Frame(list_frame, bg=p["surface"], highlightbackground=p["border_dark"], highlightthickness=1)
+        tree_border.pack(fill="both", expand=True)
+
+        self.tree = ttk.Treeview(tree_border, columns=("name", "count"), show="", selectmode="browse")
         self.tree.column("name", width=140, anchor="w")
-        self.tree.column("count", width=50, anchor="e")
+        self.tree.column("count", width=60, anchor="e")
         self.tree.pack(side="left", fill="both", expand=True)
 
         self.tree.bind("<<TreeviewSelect>>", self.on_table_selected)
 
         # Bottom Bar: User, Logout, Dark Mode toggle
-        bottom_frame = ttk.Frame(self, padding=(10, 10))
-        bottom_frame.pack(fill="x", side="bottom")
+        bottom_frame = tk.Frame(
+            self, bg=p["panel"], padx=10, pady=8,
+            highlightbackground=p["border"], highlightthickness=1
+        )
+        bottom_frame.pack(fill="x", side="bottom", padx=4, pady=4)
 
-        self.user_lbl = ttk.Label(bottom_frame, text=self.app.username, style="Bold.TLabel")
+        self.user_lbl = tk.Label(bottom_frame, text=self.app.username, bg=p["panel"], fg=p["text"], font=("Segoe UI", 10, "bold"))
         self.user_lbl.pack(side="left")
 
         self.logout_lbl = tk.Label(
             bottom_frame, text="Log out", fg=p["accent"],
-            bg=p["bg"], cursor="hand2", font=("Segoe UI", 9, "underline")
+            bg=p["panel"], cursor="hand2", font=("Segoe UI", 9, "bold", "underline")
         )
         self.logout_lbl.pack(side="left", padx=(10, 0))
         self.logout_lbl.bind("<Button-1>", lambda e: self.app.on_logout())
 
         self.theme_btn = tk.Label(
-            bottom_frame, text="☾", font=("Segoe UI", 11),
-            fg=p["text"], bg=p["bg"], cursor="hand2"
+            bottom_frame, text=" ☾ ", font=("Segoe UI", 10, "bold"),
+            fg=p["text"], bg=p["surface"], relief="solid", bd=1, cursor="hand2"
         )
         self.theme_btn.pack(side="right")
         self.theme_btn.bind("<Button-1>", lambda e: self.app.toggle_theme())

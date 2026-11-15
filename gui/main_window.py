@@ -60,20 +60,23 @@ class MainWindow:
         # Setup autocomplete on console editor
         self.autocomplete = AutocompletePopup(self.console.editor, lambda: self.db.get_table_info() if self.db.con else [])
 
-        # Bottom Status Bar
-        self.status_bar = ttk.Frame(self.root, padding=(8, 4))
+        # Bottom Status Bar with high-contrast outline
+        self.status_bar = tk.Frame(
+            self.root, bg=p["panel"], padx=10, pady=5,
+            highlightbackground=p["border_dark"], highlightthickness=1
+        )
         self.status_bar.pack(fill="x", side="bottom")
 
-        self.status_user = ttk.Label(self.status_bar, text=f"User: {self.username}")
-        self.status_user.pack(side="left", padx=(0, 12))
+        self.status_user = tk.Label(self.status_bar, text=f"User: {self.username}", bg=p["panel"], fg=p["text"], font=("Segoe UI", 9, "bold"))
+        self.status_user.pack(side="left", padx=(0, 14))
 
-        self.status_file = ttk.Label(self.status_bar, text="No database open", style="Muted.TLabel")
-        self.status_file.pack(side="left", padx=(0, 12))
+        self.status_file = tk.Label(self.status_bar, text="No database open", bg=p["panel"], fg=p["muted"], font=("Segoe UI", 9))
+        self.status_file.pack(side="left", padx=(0, 14))
 
-        self.status_rows = ttk.Label(self.status_bar, text="", style="Muted.TLabel")
-        self.status_rows.pack(side="left", padx=(0, 12))
+        self.status_rows = tk.Label(self.status_bar, text="", bg=p["panel"], fg=p["muted"], font=("Segoe UI", 9))
+        self.status_rows.pack(side="left", padx=(0, 14))
 
-        self.status_time = ttk.Label(self.status_bar, text="", style="Muted.TLabel")
+        self.status_time = tk.Label(self.status_bar, text="", bg=p["panel"], fg=p["muted"], font=("Segoe UI", 9))
         self.status_time.pack(side="right")
 
     def run_in_background(self, work, done):
@@ -94,8 +97,12 @@ class MainWindow:
 
     def toggle_theme(self):
         new_theme = "dark" if CURRENT_THEME == "light" else "light"
-        apply(self.root, new_theme)
+        p = apply(self.root, new_theme)
         self.sidebar.theme_btn.config(text="☀" if new_theme == "dark" else "☾")
+        self.status_bar.config(bg=p["panel"], highlightbackground=p["border_dark"])
+        for child in self.status_bar.winfo_children():
+            if isinstance(child, tk.Label):
+                child.config(bg=p["panel"], fg=p["text"])
 
     def on_open_database(self):
         path = filedialog.askopenfilename(filetypes=[("SQLite Database", "*.db *.sqlite"), ("All Files", "*.*")])
@@ -232,3 +239,4 @@ class MainWindow:
         self.history.close()
         self.memory.close()
         self.root.destroy()
+

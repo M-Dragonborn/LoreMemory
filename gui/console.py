@@ -10,9 +10,10 @@ SQL_KEYWORDS_SET = {
     "BY", "GROUP", "LIMIT", "AND", "OR", "NOT", "NULL", "PRIMARY", "KEY"
 }
 
-class Console(ttk.Frame):
+class Console(tk.Frame):
     def __init__(self, parent, app):
-        super().__init__(parent)
+        p = get_palette()
+        super().__init__(parent, bg=p["bg"], highlightbackground=p["border_dark"], highlightthickness=1)
         self.app = app
         self.history_commands = []
         self.history_index = -1
@@ -23,16 +24,18 @@ class Console(ttk.Frame):
     def setup_ui(self):
         p = get_palette()
 
-        # Vertical paned window to allow dragging between output/editor and buttons
         paned = ttk.Panedwindow(self, orient="vertical")
-        paned.pack(fill="both", expand=True)
+        paned.pack(fill="both", expand=True, padx=2, pady=2)
 
-        top_pane = ttk.Frame(paned)
+        top_pane = tk.Frame(paned, bg=p["bg"])
         paned.add(top_pane, weight=3)
 
-        # Output Area
-        out_frame = ttk.Frame(top_pane)
-        out_frame.pack(fill="both", expand=True, side="top")
+        # Output Area with clear border
+        out_frame = tk.Frame(
+            top_pane, bg=p["surface"],
+            highlightbackground=p["border_dark"], highlightthickness=1
+        )
+        out_frame.pack(fill="both", expand=True, side="top", pady=(0, 4))
 
         self.output = tk.Text(
             out_frame, wrap="word", font=("Consolas", 9),
@@ -45,17 +48,20 @@ class Console(ttk.Frame):
         out_scroll.pack(side="right", fill="y")
 
         self.output.tag_configure("cmd", foreground=p["text"], font=("Consolas", 9, "bold"))
-        self.output.tag_configure("outcome", foreground=p["muted"])
-        self.output.tag_configure("error", foreground=p["danger"])
+        self.output.tag_configure("outcome", foreground=p["muted"], font=("Consolas", 9, "italic"))
+        self.output.tag_configure("error", foreground=p["danger"], font=("Consolas", 9, "bold"))
 
-        # Editor Area
-        ed_frame = ttk.Frame(top_pane, padding=(0, 4, 0, 0))
+        # Editor Area with prominent border outline
+        ed_frame = tk.Frame(
+            top_pane, bg=p["surface"],
+            highlightbackground=p["border_dark"], highlightthickness=2
+        )
         ed_frame.pack(fill="both", expand=True, side="bottom")
 
         self.editor = tk.Text(
             ed_frame, wrap="word", font=("Consolas", 10),
             bg=p["surface"], fg=p["text"], padx=8, pady=8,
-            borderwidth=1, relief="solid", highlightthickness=0, height=8
+            borderwidth=0, highlightthickness=0, height=8, insertbackground=p["text"]
         )
         self.editor.pack(fill="both", expand=True)
         self.editor.tag_configure("keyword", foreground=p["accent"], font=("Consolas", 10, "bold"))
@@ -67,16 +73,20 @@ class Console(ttk.Frame):
         self.editor.bind("<Up>", self.on_arrow_up)
         self.editor.bind("<Down>", self.on_arrow_down)
 
-        # Button & Status Area
-        bot_pane = ttk.Frame(paned, padding=8)
+        # Button & Status Area with panel border
+        bot_pane = tk.Frame(
+            paned, bg=p["panel"], padx=10, pady=8,
+            highlightbackground=p["border_dark"], highlightthickness=1
+        )
         paned.add(bot_pane, weight=1)
 
-        # Pending changes line
-        self.pending_lbl = ttk.Label(bot_pane, text="No pending changes", style="Muted.TLabel")
+        self.pending_lbl = tk.Label(
+            bot_pane, text="No pending changes", bg=p["panel"],
+            fg=p["muted"], font=("Segoe UI", 9, "bold")
+        )
         self.pending_lbl.pack(anchor="w", pady=(0, 6))
 
-        # Main Action Buttons
-        btn_row1 = ttk.Frame(bot_pane)
+        btn_row1 = tk.Frame(bot_pane, bg=p["panel"])
         btn_row1.pack(fill="x", pady=(0, 4))
 
         self.run_btn = ttk.Button(btn_row1, text="Run", style="Run.TButton", command=self.on_run)
@@ -88,8 +98,7 @@ class Console(ttk.Frame):
         self.rollback_btn = ttk.Button(btn_row1, text="Rollback", command=self.on_rollback)
         self.rollback_btn.pack(side="left", padx=4)
 
-        # Secondary Buttons
-        btn_row2 = ttk.Frame(bot_pane)
+        btn_row2 = tk.Frame(bot_pane, bg=p["panel"])
         btn_row2.pack(fill="x")
 
         ttk.Button(btn_row2, text="Table history", command=self.on_table_history).pack(side="left", padx=(0, 2))
@@ -98,7 +107,6 @@ class Console(ttk.Frame):
         ttk.Button(btn_row2, text="Clear", command=self.on_clear_output).pack(side="left", padx=2)
 
     def on_editor_key_release(self, event=None):
-        # Keyword syntax highlighting
         content = self.editor.get("1.0", "end-1c")
         self.editor.tag_remove("keyword", "1.0", "end")
         for match in re.finditer(r"\b([A-Za-z_]+)\b", content):
@@ -152,7 +160,6 @@ class Console(ttk.Frame):
         self.output.config(state="disabled")
 
     def on_run(self):
-        # Selection or full editor text
         try:
             sel_text = self.editor.get("sel.first", "sel.last").strip()
         except tk.TclError:
@@ -165,7 +172,6 @@ class Console(ttk.Frame):
         self.history_commands.append(sql_to_run)
         self.history_index = -1
 
-        # Check dangerous
         danger = self.app.db.is_dangerous(sql_to_run)
         if danger:
             if not confirm_dangerous(self, danger):
@@ -173,7 +179,6 @@ class Console(ttk.Frame):
 
         self.print_output(f"> {sql_to_run}", tag="cmd")
 
-        # Run via background worker
         def work():
             return self.app.db.run_script(sql_to_run)
 
@@ -239,6 +244,6 @@ class Console(ttk.Frame):
     def update_pending_status(self, is_pending):
         p = get_palette()
         if is_pending:
-            self.pending_lbl.config(text="● Uncommitted changes", foreground=p["danger"])
+            self.pending_lbl.config(text="● Uncommitted changes", fg=p["danger"])
         else:
-            self.pending_lbl.config(text="No pending changes", foreground=p["muted"])
+            self.pending_lbl.config(text="No pending changes", fg=p["muted"])

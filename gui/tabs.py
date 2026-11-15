@@ -8,28 +8,34 @@ class TabStrip:
         self.on_tab_close = on_tab_close
         self.on_tab_switch = on_tab_switch
 
-        self.tabs = {}  # key -> dict(kind, title, page, frame, tab_widget)
+        self.tabs = {}
         self.active_key = None
 
         p = get_palette()
-        self.container = ttk.Frame(parent)
+        self.container = tk.Frame(parent, bg=p["bg"])
 
-        # Tab strip header
-        self.header_frame = tk.Frame(self.container, bg=p["bg"], height=32)
-        self.header_frame.pack(fill="x", side="top")
+        # Tab strip header bar with bottom border
+        self.header_frame = tk.Frame(
+            self.container, bg=p["panel"], height=36,
+            highlightbackground=p["border_dark"], highlightthickness=1
+        )
+        self.header_frame.pack(fill="x", side="top", padx=2, pady=(2, 0))
         self.header_frame.pack_propagate(False)
 
-        # Content area
-        self.content_frame = ttk.Frame(self.container)
-        self.content_frame.pack(fill="both", expand=True, side="bottom")
+        # Content area with clear border frame
+        self.content_frame = tk.Frame(
+            self.container, bg=p["surface"],
+            highlightbackground=p["border_dark"], highlightthickness=1
+        )
+        self.content_frame.pack(fill="both", expand=True, side="bottom", padx=2, pady=2)
 
         # Empty hint
         self.empty_label = tk.Label(
             self.content_frame,
-            text="Open a table from the left",
-            font=("Segoe UI", 12),
+            text="Open a table from the left to view data",
+            font=("Segoe UI", 12, "bold"),
             fg=p["muted"],
-            bg=p["bg"]
+            bg=p["surface"]
         )
         self.empty_label.place(relx=0.5, rely=0.5, anchor="center")
 
@@ -42,22 +48,21 @@ class TabStrip:
         self.active_key = key
         p = get_palette()
 
-        # Update tab headers
         for k, info in self.tabs.items():
             btn_frame = info["header"]
             lbl = info["title_lbl"]
             cls = info["close_lbl"]
             if k == key:
-                btn_frame.config(bg=p["surface"], highlightbackground=p["accent"], highlightthickness=1)
-                lbl.config(bg=p["surface"], fg=p["accent"])
-                cls.config(bg=p["surface"], fg=p["muted"])
+                btn_frame.config(bg=p["surface"], highlightbackground=p["accent"], highlightthickness=2)
+                lbl.config(bg=p["surface"], fg=p["accent"], font=("Segoe UI", 9, "bold"))
+                cls.config(bg=p["surface"], fg=p["danger"])
                 info["page"].tkraise()
                 if hasattr(info["page"], "reload"):
                     info["page"].reload()
             else:
-                btn_frame.config(bg=p["bg"], highlightthickness=0)
-                lbl.config(bg=p["bg"], fg=p["text"])
-                cls.config(bg=p["bg"], fg=p["muted"])
+                btn_frame.config(bg=p["panel"], highlightbackground=p["border"], highlightthickness=1)
+                lbl.config(bg=p["panel"], fg=p["text"], font=("Segoe UI", 9))
+                cls.config(bg=p["panel"], fg=p["muted"])
 
         self.empty_label.place_forget()
         if self.on_tab_switch:
@@ -69,19 +74,21 @@ class TabStrip:
             return self.tabs[key]["page"]
 
         p = get_palette()
-        tab_hdr = tk.Frame(self.header_frame, bg=p["bg"], padx=6, pady=2)
-        tab_hdr.pack(side="left", padx=2, pady=(4, 0))
+        tab_hdr = tk.Frame(
+            self.header_frame, bg=p["panel"], padx=8, pady=3,
+            highlightbackground=p["border"], highlightthickness=1, relief="solid", bd=1
+        )
+        tab_hdr.pack(side="left", padx=3, pady=(3, 2))
 
-        lbl = tk.Label(tab_hdr, text=title, font=("Segoe UI", 9), bg=p["bg"], fg=p["text"], cursor="hand2")
-        lbl.pack(side="left", padx=(2, 4))
+        lbl = tk.Label(tab_hdr, text=title, font=("Segoe UI", 9), bg=p["panel"], fg=p["text"], cursor="hand2")
+        lbl.pack(side="left", padx=(2, 6))
         lbl.bind("<Button-1>", lambda e, k=key: self.select(k))
         tab_hdr.bind("<Button-1>", lambda e, k=key: self.select(k))
 
-        cls = tk.Label(tab_hdr, text="×", font=("Segoe UI", 10, "bold"), bg=p["bg"], fg=p["muted"], cursor="hand2")
-        cls.pack(side="right", padx=(2, 2))
+        cls = tk.Label(tab_hdr, text=" × ", font=("Segoe UI", 10, "bold"), bg=p["panel"], fg=p["muted"], cursor="hand2")
+        cls.pack(side="right")
         cls.bind("<Button-1>", lambda e, k=key: self.close_tab(k))
 
-        # Position page in content frame
         page.place(x=0, y=0, relwidth=1.0, relheight=1.0)
 
         self.tabs[key] = {
@@ -115,7 +122,7 @@ class TabStrip:
             else:
                 self.active_key = None
                 p = get_palette()
-                self.empty_label.config(bg=p["bg"], fg=p["muted"])
+                self.empty_label.config(bg=p["surface"], fg=p["muted"])
                 self.empty_label.place(relx=0.5, rely=0.5, anchor="center")
                 if self.on_tab_switch:
                     self.on_tab_switch(None, None, None)
@@ -137,10 +144,8 @@ class TabStrip:
             self.active_key = new_key
 
     def close_table_and_history(self, table_name):
-        t_key = f"table:{table_name}"
-        h_key = f"history:{table_name}"
-        self.close_tab(h_key)
-        self.close_tab(t_key)
+        self.close_tab(f"history:{table_name}")
+        self.close_tab(f"table:{table_name}")
 
     def rename_table_tabs(self, old_name, new_name):
         old_t, new_t = f"table:{old_name}", f"table:{new_name}"

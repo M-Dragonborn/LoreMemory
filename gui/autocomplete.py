@@ -177,3 +177,4 @@ class AutocompletePopup:
             y = self.editor.winfo_rooty() + bbox[1] + bbox[3]
             self.popup.geometry(f"220x160+{x}+{y}")
             self.popup.lift()
+

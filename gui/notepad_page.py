@@ -3,9 +3,10 @@ from tkinter import ttk
 from config import HISTORY_BATCH
 from gui.theme import get_palette
 
-class NotepadPage(ttk.Frame):
+class NotepadPage(tk.Frame):
     def __init__(self, parent, app, title="Notepad"):
-        super().__init__(parent)
+        p = get_palette()
+        super().__init__(parent, bg=p["surface"])
         self.app = app
         self.title_str = title
         self.offset = 0
@@ -18,23 +19,32 @@ class NotepadPage(ttk.Frame):
 
     def setup_ui(self):
         p = get_palette()
-        self.top_bar = ttk.Frame(self, padding=(8, 4))
-        self.top_bar.pack(fill="x", side="top")
+        self.top_bar = tk.Frame(
+            self, bg=p["panel"], padx=10, pady=8,
+            highlightbackground=p["border"], highlightthickness=1
+        )
+        self.top_bar.pack(fill="x", side="top", padx=4, pady=4)
 
         # Find bar (toggleable via Ctrl+F)
-        self.find_bar = ttk.Frame(self, padding=(8, 2))
+        self.find_bar = tk.Frame(
+            self, bg=p["panel"], padx=8, pady=4,
+            highlightbackground=p["accent"], highlightthickness=1
+        )
         self.find_entry = ttk.Entry(self.find_bar, width=20)
         self.find_entry.pack(side="left", padx=2)
         self.find_entry.bind("<KeyRelease>", lambda e: self.do_find())
         ttk.Button(self.find_bar, text="‹", width=2, command=self.find_prev).pack(side="left", padx=2)
         ttk.Button(self.find_bar, text="›", width=2, command=self.find_next).pack(side="left", padx=2)
         ttk.Button(self.find_bar, text="×", width=2, command=self.hide_find_bar).pack(side="left", padx=2)
-        self.find_lbl = ttk.Label(self.find_bar, text="", style="Muted.TLabel")
-        self.find_lbl.pack(side="left", padx=4)
+        self.find_lbl = tk.Label(self.find_bar, text="", bg=p["panel"], fg=p["muted"], font=("Segoe UI", 9, "bold"))
+        self.find_lbl.pack(side="left", padx=6)
 
-        # Main text area
-        text_frame = ttk.Frame(self)
-        text_frame.pack(fill="both", expand=True)
+        # Main text area enclosed with distinct border
+        text_frame = tk.Frame(
+            self, bg=p["surface"],
+            highlightbackground=p["border_dark"], highlightthickness=1
+        )
+        text_frame.pack(fill="both", expand=True, padx=4, pady=2)
 
         self.text = tk.Text(
             text_frame, wrap="word", font=("Consolas", 10),
@@ -51,9 +61,9 @@ class NotepadPage(ttk.Frame):
         # Tags
         self.text.tag_configure("header", foreground=p["muted"], font=("Segoe UI", 9, "bold"))
         self.text.tag_configure("failed", foreground=p["danger"], font=("Segoe UI", 9, "bold"))
-        self.text.tag_configure("error_msg", foreground=p["danger"])
+        self.text.tag_configure("error_msg", foreground=p["danger"], font=("Consolas", 10, "bold"))
         self.text.tag_configure("sql", foreground=p["text"], font=("Consolas", 10))
-        self.text.tag_configure("find_match", background="#fff3a8", foreground="#000000")
+        self.text.tag_configure("find_match", background="#fef08a", foreground="#000000")
         self.text.tag_configure("find_curr", background=p["accent"], foreground=p["accent_text"])
 
         self.text.bind("<Control-f>", lambda e: self.show_find_bar())
@@ -74,7 +84,7 @@ class NotepadPage(ttk.Frame):
             self.load_more()
 
     def show_find_bar(self):
-        self.find_bar.pack(fill="x", side="top", before=self.text.master)
+        self.find_bar.pack(fill="x", side="top", before=self.text.master, padx=4, pady=2)
         self.find_entry.focus()
 
     def hide_find_bar(self):
@@ -137,18 +147,20 @@ class HistoryPage(NotepadPage):
         self.table_name = table_name
         self.return_tab = return_tab
 
-        # Back arrow
         ttk.Button(self.top_bar, text="‹ Back", width=6, command=self.go_back).pack(side="left", padx=(0, 8))
 
-        # Filter mode text & toggle link
         target_str = self.table_name if self.table_name else "whole database"
-        self.scope_lbl = ttk.Label(self.top_bar, text=f"Showing: {target_str}", font=("Segoe UI", 9))
-        self.scope_lbl.pack(side="left", padx=(0, 8))
+        self.scope_lbl = tk.Label(
+            self.top_bar, text=f"Showing: {target_str}",
+            bg=get_palette()["panel"], fg=get_palette()["text"], font=("Segoe UI", 9, "bold")
+        )
+        self.scope_lbl.pack(side="left", padx=(0, 10))
 
         if self.table_name:
             self.switch_link = tk.Label(
                 self.top_bar, text="Switch to whole database",
-                fg=get_palette()["accent"], cursor="hand2", font=("Segoe UI", 9, "underline")
+                fg=get_palette()["accent"], bg=get_palette()["panel"],
+                cursor="hand2", font=("Segoe UI", 9, "bold", "underline")
             )
             self.switch_link.pack(side="left")
             self.switch_link.bind("<Button-1>", lambda e: self.switch_scope())
@@ -201,7 +213,10 @@ class HistoryPage(NotepadPage):
 class MemoryPage(NotepadPage):
     def __init__(self, parent, app):
         super().__init__(parent, app, title="Memory")
-        self.lbl = ttk.Label(self.top_bar, text="AI Memory (Mnemosyne-style)", font=("Segoe UI", 9, "bold"))
+        self.lbl = tk.Label(
+            self.top_bar, text="AI Memory (Mnemosyne-style)",
+            bg=get_palette()["panel"], fg=get_palette()["text"], font=("Segoe UI", 9, "bold")
+        )
         self.lbl.pack(side="left")
         self.reload()
 

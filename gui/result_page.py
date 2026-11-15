@@ -2,24 +2,34 @@ import tkinter as tk
 from tkinter import ttk
 from gui.theme import get_palette
 
-class ResultPage(ttk.Frame):
+class ResultPage(tk.Frame):
     def __init__(self, parent, app):
-        super().__init__(parent)
+        p = get_palette()
+        super().__init__(parent, bg=p["surface"])
         self.app = app
         self.result = None
         self.setup_ui()
 
     def setup_ui(self):
-        # Top banner with outcome info
-        self.top_bar = ttk.Frame(self, padding=(8, 6))
-        self.top_bar.pack(fill="x", side="top")
+        p = get_palette()
 
-        self.info_label = ttk.Label(self.top_bar, text="", font=("Segoe UI", 9))
+        self.top_bar = tk.Frame(
+            self, bg=p["panel"], padx=10, pady=8,
+            highlightbackground=p["border"], highlightthickness=1
+        )
+        self.top_bar.pack(fill="x", side="top", padx=4, pady=4)
+
+        self.info_label = tk.Label(
+            self.top_bar, text="", font=("Segoe UI", 9, "bold"),
+            bg=p["panel"], fg=p["text"]
+        )
         self.info_label.pack(side="left")
 
-        # Treeview Grid
-        grid_frame = ttk.Frame(self)
-        grid_frame.pack(fill="both", expand=True)
+        grid_frame = tk.Frame(
+            self, bg=p["surface"],
+            highlightbackground=p["border_dark"], highlightthickness=1
+        )
+        grid_frame.pack(fill="both", expand=True, padx=4, pady=2)
 
         self.tree = ttk.Treeview(grid_frame, selectmode="browse", show="headings")
         v_scroll = ttk.Scrollbar(grid_frame, orient="vertical", command=self.tree.yview)

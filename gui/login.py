@@ -8,60 +8,57 @@ class LoginWindow:
         self.root = root
         self.on_success = on_success
         self.root.title("LoreMemory - Login")
-        self.root.geometry("360x340")
+        self.root.geometry("380x360")
         self.root.resizable(False, False)
 
         p = get_palette()
         self.root.configure(bg=p["bg"])
-
-        # Center window
         self.root.eval('tk::PlaceWindow . center')
 
-        frame = ttk.Frame(self.root, padding=30)
-        frame.pack(fill="both", expand=True)
+        # Outer card with solid outline
+        card = tk.Frame(
+            self.root, bg=p["surface"],
+            highlightbackground=p["border_dark"],
+            highlightthickness=2, padx=25, pady=25
+        )
+        card.pack(fill="both", expand=True, padx=15, pady=15)
 
         # Wordmark
         title_label = tk.Label(
-            frame,
-            text="LoreMemory",
+            card, text="LoreMemory",
             font=("Segoe UI", 20, "bold"),
-            fg=p["accent"],
-            bg=p["bg"]
+            fg=p["accent"], bg=p["surface"]
         )
-        title_label.pack(pady=(0, 20))
+        title_label.pack(pady=(0, 15))
 
         # Username
-        ttk.Label(frame, text="Username").pack(anchor="w")
-        self.user_entry = ttk.Entry(frame, width=30)
+        tk.Label(card, text="Username", bg=p["surface"], fg=p["text"], font=("Segoe UI", 10, "bold")).pack(anchor="w")
+        self.user_entry = ttk.Entry(card, width=30)
         self.user_entry.pack(fill="x", pady=(2, 10))
         self.user_entry.focus()
 
         # Password
-        ttk.Label(frame, text="Password").pack(anchor="w")
-        self.pass_entry = ttk.Entry(frame, show="*", width=30)
+        tk.Label(card, text="Password", bg=p["surface"], fg=p["text"], font=("Segoe UI", 10, "bold")).pack(anchor="w")
+        self.pass_entry = ttk.Entry(card, show="*", width=30)
         self.pass_entry.pack(fill="x", pady=(2, 10))
 
         # Error / Status line
-        self.err_label = tk.Label(frame, text="", fg=p["danger"], bg=p["bg"], font=("Segoe UI", 9))
+        self.err_label = tk.Label(card, text="", fg=p["danger"], bg=p["surface"], font=("Segoe UI", 9, "bold"))
         self.err_label.pack(pady=(0, 10))
 
         # Login button
-        self.login_btn = ttk.Button(frame, text="Login", style="Run.TButton", command=self.do_login)
+        self.login_btn = ttk.Button(card, text="Login", style="Run.TButton", command=self.do_login)
         self.login_btn.pack(fill="x", pady=(0, 10))
 
         # Create account link
         self.create_link = tk.Label(
-            frame,
-            text="Create account",
-            fg=p["accent"],
-            bg=p["bg"],
-            cursor="hand2",
-            font=("Segoe UI", 9, "underline")
+            card, text="Create account",
+            fg=p["accent"], bg=p["surface"],
+            cursor="hand2", font=("Segoe UI", 9, "bold", "underline")
         )
         self.create_link.pack()
         self.create_link.bind("<Button-1>", lambda e: self.do_register())
 
-        # Enter key triggers login
         self.root.bind("<Return>", lambda e: self.do_login())
 
     def do_login(self):

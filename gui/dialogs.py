@@ -7,7 +7,7 @@ class RowDialog(tk.Toplevel):
         super().__init__(parent)
         self.title(title)
         self.result = None
-        self.columns = columns  # list of dicts from db.get_columns
+        self.columns = columns
         self.initial_values = initial_values or {}
         self.entries = {}
 
@@ -16,8 +16,11 @@ class RowDialog(tk.Toplevel):
         self.transient(parent)
         self.grab_set()
 
-        body = ttk.Frame(self, padding=16)
-        body.pack(fill="both", expand=True)
+        card = tk.Frame(
+            self, bg=p["surface"], padx=16, pady=16,
+            highlightbackground=p["border_dark"], highlightthickness=2
+        )
+        card.pack(fill="both", expand=True, padx=10, pady=10)
 
         row_idx = 0
         for col in self.columns:
@@ -32,8 +35,12 @@ class RowDialog(tk.Toplevel):
             if col["notnull"]:
                 lbl_txt += " *"
 
-            ttk.Label(body, text=lbl_txt).grid(row=row_idx, column=0, sticky="w", pady=4, padx=(0, 8))
-            ent = ttk.Entry(body, width=32)
+            tk.Label(
+                card, text=lbl_txt, bg=p["surface"], fg=p["text"],
+                font=("Segoe UI", 9, "bold")
+            ).grid(row=row_idx, column=0, sticky="w", pady=4, padx=(0, 8))
+
+            ent = ttk.Entry(card, width=32)
             ent.grid(row=row_idx, column=1, sticky="ew", pady=4)
 
             val = self.initial_values.get(cname, "")
@@ -42,7 +49,7 @@ class RowDialog(tk.Toplevel):
             self.entries[cname] = (ent, col)
             row_idx += 1
 
-        btn_frame = ttk.Frame(body, padding=(0, 12, 0, 0))
+        btn_frame = tk.Frame(card, bg=p["surface"], pady=12)
         btn_frame.grid(row=row_idx, column=0, columnspan=2, sticky="e")
 
         ttk.Button(btn_frame, text="Cancel", command=self.destroy).pack(side="right", padx=(8, 0))
@@ -55,12 +62,12 @@ class RowDialog(tk.Toplevel):
         for cname, (ent, col) in self.entries.items():
             val = ent.get().strip()
             if val == "":
-                if self.initial_values:  # Edit mode: blank means NULL
+                if self.initial_values:
                     if col["notnull"] and col["default"] is None and not col["pk"]:
                         messagebox.showerror("Validation Error", f"Field '{cname}' cannot be empty (NOT NULL).", parent=self)
                         return
                     data[cname] = None
-                else:  # Add mode: blank omitted to allow DEFAULT
+                else:
                     pass
             else:
                 ctype = col["type"].upper()
@@ -88,22 +95,31 @@ class NewTableDialog(tk.Toplevel):
         self.transient(parent)
         self.grab_set()
 
-        body = ttk.Frame(self, padding=16)
-        body.pack(fill="both", expand=True)
+        card = tk.Frame(
+            self, bg=p["surface"], padx=16, pady=16,
+            highlightbackground=p["border_dark"], highlightthickness=2
+        )
+        card.pack(fill="both", expand=True, padx=10, pady=10)
 
-        ttk.Label(body, text="Table Name:").grid(row=0, column=0, sticky="w", pady=4)
-        self.name_entry = ttk.Entry(body, width=30)
+        tk.Label(card, text="Table Name:", bg=p["surface"], fg=p["text"], font=("Segoe UI", 10, "bold")).grid(row=0, column=0, sticky="w", pady=4)
+        self.name_entry = ttk.Entry(card, width=30)
         self.name_entry.grid(row=0, column=1, sticky="w", pady=4)
         self.name_entry.focus()
 
-        ttk.Label(body, text="Columns (name type [PK] [NOT NULL]):").grid(
-            row=1, column=0, columnspan=2, sticky="w", pady=(12, 4)
+        tk.Label(
+            card, text="Columns (name type [PK] [NOT NULL]):",
+            bg=p["surface"], fg=p["text"], font=("Segoe UI", 9, "bold")
+        ).grid(row=1, column=0, columnspan=2, sticky="w", pady=(12, 4))
+
+        self.col_text = tk.Text(
+            card, width=45, height=8, font=("Consolas", 10),
+            bg=p["surface"], fg=p["text"], relief="solid", borderwidth=1,
+            highlightbackground=p["border_dark"], highlightthickness=1
         )
-        self.col_text = tk.Text(body, width=45, height=8, font=("Consolas", 10))
         self.col_text.grid(row=2, column=0, columnspan=2, sticky="nsew", pady=4)
         self.col_text.insert("1.0", "id INTEGER PRIMARY KEY AUTOINCREMENT\nname TEXT NOT NULL\ncreated_at TEXT DEFAULT CURRENT_TIMESTAMP")
 
-        btn_frame = ttk.Frame(body, padding=(0, 10, 0, 0))
+        btn_frame = tk.Frame(card, bg=p["surface"], pady=10)
         btn_frame.grid(row=3, column=0, columnspan=2, sticky="e")
         ttk.Button(btn_frame, text="Cancel", command=self.destroy).pack(side="right", padx=(8, 0))
         ttk.Button(btn_frame, text="Create Table", style="Run.TButton", command=self.do_create).pack(side="right")
