@@ -2,35 +2,35 @@ import tkinter as tk
 from tkinter import ttk
 
 LIGHT_PALETTE = {
-    "bg": "#f1f5f9",            # Soft modern slate background
-    "surface": "#ffffff",       # Clean white surface
-    "panel": "#f8fafc",         # Very soft panel background
-    "text": "#0f172a",          # Clear, sharp slate text
-    "muted": "#475569",         # Subtle secondary text
-    "accent": "#0284c7",        # Vibrant blue
+    "bg": "#e2e8f0",            # 15-20% higher contrast grey canvas (slate 200)
+    "surface": "#ffffff",       # Pure white content areas that pop against canvas
+    "panel": "#edf2f7",         # Lightly tinted panel containers
+    "text": "#090d16",          # Deep crisp text for readability
+    "muted": "#334155",         # Clear slate secondary text
+    "accent": "#0284c7",        # Vibrant royal/sky blue
     "accent_hover": "#0369a1",
     "accent_text": "#ffffff",
-    "border": "#cbd5e1",        # Soft, low-transparency 1px outline
-    "border_dark": "#94a3b8",   # Refined border
-    "border_subtle": "#e2e8f0",
+    "border": "#94a3b8",        # Clean, distinct 1px outline (about 20% darker than before)
+    "border_dark": "#64748b",   # Focused border
+    "border_subtle": "#cbd5e1",
     "danger": "#dc2626",
     "success": "#16a34a",
-    "select_bg": "#e0f2fe",
+    "select_bg": "#bae6fd",     # Vivid light blue selection
     "select_fg": "#0369a1"
 }
 
 DARK_PALETTE = {
-    "bg": "#0b0f19",            # Deep slate dark background
-    "surface": "#151c2c",       # Slate surface
-    "panel": "#111827",         # Secondary dark panel
+    "bg": "#090d16",            # Deep slate dark background
+    "surface": "#161f30",       # Slate surface with distinct boundary
+    "panel": "#101726",         # Secondary dark panel
     "text": "#f8fafc",          # High-contrast white text
-    "muted": "#94a3b8",         # Refined muted text
+    "muted": "#94a3b8",         # Clean light slate text
     "accent": "#38bdf8",        # Bright sky blue
     "accent_hover": "#0284c7",
-    "accent_text": "#0b0f19",
-    "border": "#283548",        # Subtle dark border
-    "border_dark": "#475569",   # Clear dark outline
-    "border_subtle": "#1e293b",
+    "accent_text": "#090d16",
+    "border": "#3b4b63",        # 15-20% brighter 1px outline in dark mode
+    "border_dark": "#64748b",
+    "border_subtle": "#283548",
     "danger": "#ef4444",
     "success": "#22c55e",
     "select_bg": "#0284c7",
@@ -68,7 +68,7 @@ def apply(root, mode="light"):
     style.configure("Bold.TLabel", font=bold_font, foreground=p["text"])
     style.configure("Error.TLabel", foreground=p["danger"], font=bold_font)
 
-    # Flat, clean buttons with soft 1px border
+    # Flat, clean buttons with distinct 1px border
     style.configure(
         "TButton",
         background=p["surface"],
@@ -106,7 +106,7 @@ def apply(root, mode="light"):
         bordercolor=[("active", p["border_dark"])]
     )
 
-    # Treeview with smooth rows and subtle outlines
+    # Treeview with smooth rows and clear 1px outlines
     style.configure(
         "Treeview",
         background=p["surface"],
@@ -134,7 +134,7 @@ def apply(root, mode="light"):
         borderwidth=1
     )
 
-    # Entry with soft 1px border
+    # Entry with distinct 1px border
     style.configure(
         "TEntry",
         fieldbackground=p["surface"],
