@@ -297,3 +297,4 @@ pyinstaller --onefile --clean --name LoreMemory main.py
 ```
 - The output executable is placed in `dist/LoreMemory.exe`.
 - Do not use `--noconsole`: `main.py` detects when double-clicked and hides the console window on Windows automatically, while preserving terminal access when invoked with CLI arguments by an LLM.
+

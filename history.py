@@ -142,3 +142,4 @@ class HistoryLog:
                 except Exception:
                     pass
                 self.con = None
+

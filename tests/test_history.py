@@ -124,3 +124,4 @@ def test_history_offset_pagination(env):
     sql1 = [e[3] for e in batch1]
     sql2 = [e[3] for e in batch2]
     assert not set(sql1).intersection(set(sql2))
+

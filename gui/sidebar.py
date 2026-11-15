@@ -7,7 +7,7 @@ from gui.theme import get_palette
 class Sidebar(tk.Frame):
     def __init__(self, parent, app):
         p = get_palette()
-        super().__init__(parent, bg=p["bg"], highlightbackground=p["border_dark"], highlightthickness=1)
+        super().__init__(parent, bg=p["bg"], highlightbackground=p["border"], highlightthickness=1)
         self.app = app
         self.collapsed = False
         self.selected_table = None
@@ -19,8 +19,8 @@ class Sidebar(tk.Frame):
         p = get_palette()
 
         # Database Header & Menu
-        top_frame = tk.Frame(self, bg=p["panel"], padx=10, pady=10, highlightbackground=p["border"], highlightthickness=1)
-        top_frame.pack(fill="x", side="top", padx=4, pady=4)
+        top_frame = tk.Frame(self, bg=p["panel"], padx=8, pady=8, highlightbackground=p["border"], highlightthickness=1)
+        top_frame.pack(fill="x", side="top", padx=3, pady=3)
 
         self.db_menu_btn = tk.Menubutton(
             top_frame,
@@ -30,8 +30,6 @@ class Sidebar(tk.Frame):
             fg=p["text"],
             relief="solid",
             bd=1,
-            highlightbackground=p["border_dark"],
-            highlightthickness=1,
             padx=8,
             pady=3,
             cursor="hand2"
@@ -47,7 +45,7 @@ class Sidebar(tk.Frame):
         self.collapse_btn.pack(side="right")
 
         # Tables Section Header
-        tables_hdr = tk.Frame(self, bg=p["bg"], padx=10, pady=8)
+        tables_hdr = tk.Frame(self, bg=p["bg"], padx=8, pady=6)
         tables_hdr.pack(fill="x", side="top")
 
         tk.Label(
@@ -56,17 +54,17 @@ class Sidebar(tk.Frame):
         ).pack(side="left")
 
         self.new_tbl_btn = tk.Label(
-            tables_hdr, text=" + ", font=("Segoe UI", 12, "bold"),
-            fg=p["accent_text"], bg=p["accent"], cursor="hand2", relief="solid", bd=1
+            tables_hdr, text=" + ", font=("Segoe UI", 11, "bold"),
+            fg=p["accent_text"], bg=p["accent"], cursor="hand2", relief="flat"
         )
         self.new_tbl_btn.pack(side="right")
         self.new_tbl_btn.bind("<Button-1>", lambda e: self.open_new_table_dialog())
 
-        # Tables list area enclosed with distinct border
-        list_frame = tk.Frame(self, bg=p["bg"], padx=4, pady=2)
+        # Tables list area enclosed with soft 1px border
+        list_frame = tk.Frame(self, bg=p["bg"], padx=3, pady=1)
         list_frame.pack(fill="both", expand=True)
 
-        tree_border = tk.Frame(list_frame, bg=p["surface"], highlightbackground=p["border_dark"], highlightthickness=1)
+        tree_border = tk.Frame(list_frame, bg=p["surface"], highlightbackground=p["border"], highlightthickness=1)
         tree_border.pack(fill="both", expand=True)
 
         self.tree = ttk.Treeview(tree_border, columns=("name", "count"), show="", selectmode="browse")
@@ -78,12 +76,12 @@ class Sidebar(tk.Frame):
 
         # Bottom Bar: User, Logout, Dark Mode toggle
         bottom_frame = tk.Frame(
-            self, bg=p["panel"], padx=10, pady=8,
+            self, bg=p["panel"], padx=8, pady=6,
             highlightbackground=p["border"], highlightthickness=1
         )
-        bottom_frame.pack(fill="x", side="bottom", padx=4, pady=4)
+        bottom_frame.pack(fill="x", side="bottom", padx=3, pady=3)
 
-        self.user_lbl = tk.Label(bottom_frame, text=self.app.username, bg=p["panel"], fg=p["text"], font=("Segoe UI", 10, "bold"))
+        self.user_lbl = tk.Label(bottom_frame, text=self.app.username, bg=p["panel"], fg=p["text"], font=("Segoe UI", 9, "bold"))
         self.user_lbl.pack(side="left")
 
         self.logout_lbl = tk.Label(
@@ -94,7 +92,7 @@ class Sidebar(tk.Frame):
         self.logout_lbl.bind("<Button-1>", lambda e: self.app.on_logout())
 
         self.theme_btn = tk.Label(
-            bottom_frame, text=" ☾ ", font=("Segoe UI", 10, "bold"),
+            bottom_frame, text=" ☾ ", font=("Segoe UI", 10),
             fg=p["text"], bg=p["surface"], relief="solid", bd=1, cursor="hand2"
         )
         self.theme_btn.pack(side="right")

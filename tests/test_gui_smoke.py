@@ -38,3 +38,4 @@ def test_gui_full_smoke():
     app.history.close()
     app.memory.close()
     root.destroy()
+

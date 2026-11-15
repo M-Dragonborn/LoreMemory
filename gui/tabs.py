@@ -14,18 +14,18 @@ class TabStrip:
         p = get_palette()
         self.container = tk.Frame(parent, bg=p["bg"])
 
-        # Tab strip header bar with bottom border
+        # Tab strip header bar with subtle bottom border
         self.header_frame = tk.Frame(
             self.container, bg=p["panel"], height=36,
-            highlightbackground=p["border_dark"], highlightthickness=1
+            highlightbackground=p["border"], highlightthickness=1
         )
         self.header_frame.pack(fill="x", side="top", padx=2, pady=(2, 0))
         self.header_frame.pack_propagate(False)
 
-        # Content area with clear border frame
+        # Content area with soft border frame
         self.content_frame = tk.Frame(
             self.container, bg=p["surface"],
-            highlightbackground=p["border_dark"], highlightthickness=1
+            highlightbackground=p["border"], highlightthickness=1
         )
         self.content_frame.pack(fill="both", expand=True, side="bottom", padx=2, pady=2)
 
@@ -33,7 +33,7 @@ class TabStrip:
         self.empty_label = tk.Label(
             self.content_frame,
             text="Open a table from the left to view data",
-            font=("Segoe UI", 12, "bold"),
+            font=("Segoe UI", 11, "bold"),
             fg=p["muted"],
             bg=p["surface"]
         )
@@ -53,7 +53,7 @@ class TabStrip:
             lbl = info["title_lbl"]
             cls = info["close_lbl"]
             if k == key:
-                btn_frame.config(bg=p["surface"], highlightbackground=p["accent"], highlightthickness=2)
+                btn_frame.config(bg=p["surface"], highlightbackground=p["accent"], highlightthickness=1)
                 lbl.config(bg=p["surface"], fg=p["accent"], font=("Segoe UI", 9, "bold"))
                 cls.config(bg=p["surface"], fg=p["danger"])
                 info["page"].tkraise()

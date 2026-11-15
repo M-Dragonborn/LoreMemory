@@ -180,3 +180,4 @@ def test_db_is_dangerous():
     assert db.is_dangerous("DELETE FROM users WHERE id = 1") is None
     assert db.is_dangerous("UPDATE users SET a = 1 WHERE id = 1") is None
     assert db.is_dangerous("SELECT * FROM users") is None
+

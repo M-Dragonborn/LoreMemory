@@ -23,10 +23,11 @@ class MainWindow:
         self.on_logout_cb = on_logout
 
         self.root.title("LoreMemory")
-        self.root.geometry(MIN_WINDOW)
-        self.root.minsize(1100, 700)
+        try:
+            self.root.state("zoomed")
+        except Exception:
+            self.root.geometry(MIN_WINDOW)
 
-        # Services
         self.history = HistoryLog(HISTORY_DB, USERS_DB)
         self.memory = Memory(MEMORY_DB)
         self.db = Database(history=self.history, user_id=self.user_id)
@@ -42,28 +43,41 @@ class MainWindow:
     def setup_ui(self):
         p = get_palette()
 
-        # Main horizontal paned window (2 : 5 : 3 ratio)
-        self.paned = ttk.Panedwindow(self.root, orient="horizontal")
+        self.main_container = tk.Frame(self.root, bg=p["bg"])
+        self.main_container.pack(fill="both", expand=True)
+
+        # Persistent Expand bar visible only when sidebar is shrunk
+        self.expand_bar = tk.Frame(
+            self.main_container, bg=p["panel"], width=28,
+            highlightbackground=p["border"], highlightthickness=1
+        )
+        self.expand_btn = tk.Button(
+            self.expand_bar, text="›", font=("Segoe UI", 11, "bold"),
+            relief="flat", bg=p["surface"], fg=p["text"],
+            activebackground=p["select_bg"], command=self.toggle_sidebar,
+            cursor="hand2", bd=0, padx=4, pady=6
+        )
+        self.expand_btn.pack(side="top", pady=6)
+
+        # Paned Window (2 : 5 : 3)
+        self.paned = ttk.Panedwindow(self.main_container, orient="horizontal")
         self.paned.pack(fill="both", expand=True)
 
         self.sidebar = Sidebar(self.paned, self)
         self.paned.add(self.sidebar, weight=2)
 
-        # Tab strip in center
         self.tabs = TabStrip(self.paned, on_tab_close=self.on_tab_closed, on_tab_switch=self.on_tab_switched)
         self.paned.add(self.tabs.container, weight=5)
 
-        # Console on right
         self.console = Console(self.paned, self)
         self.paned.add(self.console, weight=3)
 
-        # Setup autocomplete on console editor
         self.autocomplete = AutocompletePopup(self.console.editor, lambda: self.db.get_table_info() if self.db.con else [])
 
-        # Bottom Status Bar with high-contrast outline
+        # Bottom Status Bar with soft 1px border
         self.status_bar = tk.Frame(
             self.root, bg=p["panel"], padx=10, pady=5,
-            highlightbackground=p["border_dark"], highlightthickness=1
+            highlightbackground=p["border"], highlightthickness=1
         )
         self.status_bar.pack(fill="x", side="bottom")
 
@@ -87,53 +101,47 @@ class MainWindow:
 
     def toggle_sidebar(self):
         if self.sidebar_collapsed:
+            self.expand_bar.pack_forget()
             self.paned.insert(0, self.sidebar, weight=2)
-            self.sidebar.collapse_btn.config(text="‹")
             self.sidebar_collapsed = False
         else:
             self.paned.forget(self.sidebar)
-            self.sidebar.collapse_btn.config(text="›")
+            self.expand_bar.pack(side="left", fill="y", before=self.paned)
             self.sidebar_collapsed = True
 
     def toggle_theme(self):
         new_theme = "dark" if CURRENT_THEME == "light" else "light"
         p = apply(self.root, new_theme)
         self.sidebar.theme_btn.config(text="☀" if new_theme == "dark" else "☾")
-        self.status_bar.config(bg=p["panel"], highlightbackground=p["border_dark"])
+        self.status_bar.config(bg=p["panel"], highlightbackground=p["border"])
+        self.expand_bar.config(bg=p["panel"], highlightbackground=p["border"])
+        self.expand_btn.config(bg=p["surface"], fg=p["text"])
         for child in self.status_bar.winfo_children():
             if isinstance(child, tk.Label):
                 child.config(bg=p["panel"], fg=p["text"])
 
     def on_open_database(self):
         path = filedialog.askopenfilename(filetypes=[("SQLite Database", "*.db *.sqlite"), ("All Files", "*.*")])
-        if path:
-            if not self.check_pending_transactions("Open Database"):
-                return
+        if path and self.check_pending_transactions("Open Database"):
             if self.db.open(path):
                 self.sidebar.update_db_name(path)
                 self.status_file.config(text=os.path.basename(path))
-                self.refresh_tables()
-                self.update_pending()
+                self.refresh_tables(); self.update_pending()
 
     def on_new_database(self):
         path = filedialog.asksaveasfilename(defaultextension=".db", filetypes=[("SQLite Database", "*.db")])
-        if path:
-            if not self.check_pending_transactions("New Database"):
-                return
+        if path and self.check_pending_transactions("New Database"):
             if self.db.open(path, create=True):
                 self.sidebar.update_db_name(path)
                 self.status_file.config(text=os.path.basename(path))
-                self.refresh_tables()
-                self.update_pending()
+                self.refresh_tables(); self.update_pending()
 
     def on_close_database(self):
-        if not self.check_pending_transactions("Close Database"):
-            return
-        self.db.close()
-        self.sidebar.update_db_name(None)
-        self.status_file.config(text="No database open")
-        self.refresh_tables()
-        self.update_pending()
+        if self.check_pending_transactions("Close Database"):
+            self.db.close()
+            self.sidebar.update_db_name(None)
+            self.status_file.config(text="No database open")
+            self.refresh_tables(); self.update_pending()
 
     def refresh_tables(self):
         if not self.db.con:
@@ -143,8 +151,7 @@ class MainWindow:
         self.sidebar.refresh_tables(info)
 
     def update_pending(self):
-        has_pending = self.db.has_pending
-        self.console.update_pending_status(has_pending)
+        self.console.update_pending_status(self.db.has_pending)
 
     def update_status(self, table_rows=None, elapsed_ms=None):
         if table_rows is not None:
@@ -222,21 +229,12 @@ class MainWindow:
         return True
 
     def on_logout(self):
-        if not self.check_pending_transactions("Logout"):
-            return
-        self.db.close()
-        self.history.close()
-        self.memory.close()
-        for w in self.root.winfo_children():
-            w.destroy()
-        if self.on_logout_cb:
-            self.on_logout_cb()
+        if not self.check_pending_transactions("Logout"): return
+        self.db.close(); self.history.close(); self.memory.close()
+        for w in self.root.winfo_children(): w.destroy()
+        if self.on_logout_cb: self.on_logout_cb()
 
     def on_close_requested(self):
-        if not self.check_pending_transactions("Exit"):
-            return
-        self.db.close()
-        self.history.close()
-        self.memory.close()
+        if not self.check_pending_transactions("Exit"): return
+        self.db.close(); self.history.close(); self.memory.close()
         self.root.destroy()
-

@@ -18,6 +18,9 @@ class AutocompletePopup:
         self.matches = []
         self.current_prefix = ""
         self.replace_start = None
+        self.after_id = None
+
+        self._init_popup()
 
         self.editor.bind("<KeyRelease>", self.on_key_release)
         self.editor.bind("<Control-space>", self.on_ctrl_space)
@@ -26,14 +29,31 @@ class AutocompletePopup:
         self.editor.bind("<Up>", self.on_arrow_up)
         self.editor.bind("<Down>", self.on_arrow_down)
         self.editor.bind("<Return>", self.on_return)
+        self.editor.bind("<FocusOut>", lambda e: self.hide())
+
+    def _init_popup(self):
+        p = get_palette()
+        self.popup = tk.Toplevel(self.editor)
+        self.popup.wm_overrideredirect(True)
+        self.listbox = tk.Listbox(
+            self.popup, font=("Segoe UI", 9), selectmode="browse",
+            bg=p["surface"], fg=p["text"], selectbackground=p["select_bg"],
+            selectforeground=p["select_fg"], borderwidth=1, relief="solid",
+            highlightbackground=p["border"], highlightthickness=1
+        )
+        self.listbox.pack(fill="both", expand=True)
+        self.listbox.bind("<Double-Button-1>", lambda e: self.on_tab(None))
+        self.popup.withdraw()
 
     def is_visible(self):
-        return self.popup is not None and self.popup.winfo_exists()
+        return self.popup.state() != "withdrawn"
 
     def hide(self):
+        if self.after_id:
+            self.editor.after_cancel(self.after_id)
+            self.after_id = None
         if self.popup:
-            self.popup.destroy()
-            self.popup = None
+            self.popup.withdraw()
 
     def on_escape(self, event):
         if self.is_visible():
@@ -88,14 +108,16 @@ class AutocompletePopup:
     def on_key_release(self, event):
         if event.keysym in ("Up", "Down", "Escape", "Return", "Tab", "Shift_L", "Shift_R", "Control_L", "Control_R"):
             return
-        self.trigger_autocomplete(force=False)
+        if self.after_id:
+            self.editor.after_cancel(self.after_id)
+        self.after_id = self.editor.after(120, lambda: self.trigger_autocomplete(force=False))
 
     def trigger_autocomplete(self, force=False):
+        self.after_id = None
         cur_pos = self.editor.index("insert")
         line_start = f"{cur_pos.split('.')[0]}.0"
         line_text = self.editor.get(line_start, cur_pos)
 
-        # Find word boundary
         import re
         m = re.search(r"([\w\.]+)$", line_text)
         token = m.group(1) if m else ""
@@ -111,7 +133,6 @@ class AutocompletePopup:
         for cols in columns_by_table.values():
             all_columns.extend(cols)
 
-        # Context detection
         before = line_text[:-len(token)].strip().upper() if token else line_text.strip().upper()
         tokens_before = before.split()
         last_kw = tokens_before[-1] if tokens_before else ""
@@ -149,32 +170,26 @@ class AutocompletePopup:
             self.hide()
             return
 
-        self.matches = suggestions[:12]
+        self.matches = suggestions[:10]
         self.show_popup()
 
     def show_popup(self):
         p = get_palette()
-        if not self.popup:
-            self.popup = tk.Toplevel(self.editor)
-            self.popup.wm_overrideredirect(True)
-            self.listbox = tk.Listbox(
-                self.popup, font=("Segoe UI", 9), selectmode="browse",
-                bg=p["surface"], fg=p["text"], selectbackground=p["select_bg"],
-                selectforeground=p["select_fg"], borderwidth=1, relief="solid"
-            )
-            self.listbox.pack(fill="both", expand=True)
-            self.listbox.bind("<Double-Button-1>", lambda e: self.on_tab(None))
-
+        self.listbox.config(
+            bg=p["surface"], fg=p["text"], selectbackground=p["select_bg"],
+            selectforeground=p["select_fg"], highlightbackground=p["border"]
+        )
         self.listbox.delete(0, "end")
         for word, kind in self.matches:
             self.listbox.insert("end", f"{word:<20} [{kind}]")
         self.listbox.selection_set(0)
 
-        # Position popup under text cursor
         bbox = self.editor.bbox("insert")
         if bbox:
             x = self.editor.winfo_rootx() + bbox[0]
-            y = self.editor.winfo_rooty() + bbox[1] + bbox[3]
-            self.popup.geometry(f"220x160+{x}+{y}")
+            y = self.editor.winfo_rooty() + bbox[1] + bbox[3] + 2
+            self.popup.geometry(f"220x150+{x}+{y}")
+            self.popup.deiconify()
             self.popup.lift()
-
+        else:
+            self.hide()

@@ -25,50 +25,50 @@ class TablePage(tk.Frame):
     def setup_ui(self):
         p = get_palette()
 
-        # Top bar: Filter and Action buttons with border
+        # Top bar with subtle border
         top_bar = tk.Frame(
-            self, bg=p["panel"], padx=10, pady=8,
+            self, bg=p["panel"], padx=8, pady=6,
             highlightbackground=p["border"], highlightthickness=1
         )
-        top_bar.pack(fill="x", side="top", padx=4, pady=4)
+        top_bar.pack(fill="x", side="top", padx=3, pady=3)
 
-        tk.Label(top_bar, text="Filter:", bg=p["panel"], fg=p["text"], font=("Segoe UI", 10, "bold")).pack(side="left", padx=(0, 6))
-        self.filter_entry = ttk.Entry(top_bar, width=24)
-        self.filter_entry.pack(side="left", padx=(0, 16))
+        tk.Label(top_bar, text="Filter:", bg=p["panel"], fg=p["text"], font=("Segoe UI", 9, "bold")).pack(side="left", padx=(0, 4))
+        self.filter_entry = ttk.Entry(top_bar, width=22)
+        self.filter_entry.pack(side="left", padx=(0, 12))
         self.filter_entry.bind("<KeyRelease>", self.on_filter_changed)
 
-        ttk.Button(top_bar, text="Add Row", command=self.on_add_row).pack(side="left", padx=3)
-        ttk.Button(top_bar, text="Edit Selected", command=self.on_edit_row).pack(side="left", padx=3)
-        ttk.Button(top_bar, text="Delete Selected", command=self.on_delete_row).pack(side="left", padx=3)
+        ttk.Button(top_bar, text="Add Row", command=self.on_add_row).pack(side="left", padx=2)
+        ttk.Button(top_bar, text="Edit Selected", command=self.on_edit_row).pack(side="left", padx=2)
+        ttk.Button(top_bar, text="Delete Selected", command=self.on_delete_row).pack(side="left", padx=2)
 
-        # Bottom bar: Paging & Table History with border
+        # Bottom bar with subtle border
         bot_bar = tk.Frame(
-            self, bg=p["panel"], padx=10, pady=8,
+            self, bg=p["panel"], padx=8, pady=6,
             highlightbackground=p["border"], highlightthickness=1
         )
-        bot_bar.pack(fill="x", side="bottom", padx=4, pady=4)
+        bot_bar.pack(fill="x", side="bottom", padx=3, pady=3)
 
         self.prev_btn = ttk.Button(bot_bar, text="‹ Previous", command=self.on_prev_page)
-        self.prev_btn.pack(side="left", padx=3)
+        self.prev_btn.pack(side="left", padx=2)
 
         self.next_btn = ttk.Button(bot_bar, text="Next ›", command=self.on_next_page)
-        self.next_btn.pack(side="left", padx=3)
+        self.next_btn.pack(side="left", padx=2)
 
-        self.page_label = tk.Label(bot_bar, text="", bg=p["panel"], fg=p["muted"], font=("Segoe UI", 9, "bold"))
-        self.page_label.pack(side="left", padx=16)
+        self.page_label = tk.Label(bot_bar, text="", bg=p["panel"], fg=p["muted"], font=("Segoe UI", 9))
+        self.page_label.pack(side="left", padx=12)
 
         ttk.Button(
             bot_bar,
             text="Open table history",
             command=lambda: self.app.open_tab("history", self.table_name)
-        ).pack(side="right", padx=3)
+        ).pack(side="right", padx=2)
 
-        # Center: Treeview Grid enclosed in distinct outline
+        # Center Treeview with soft 1px border
         grid_frame = tk.Frame(
             self, bg=p["surface"],
-            highlightbackground=p["border_dark"], highlightthickness=1
+            highlightbackground=p["border"], highlightthickness=1
         )
-        grid_frame.pack(fill="both", expand=True, padx=4, pady=2)
+        grid_frame.pack(fill="both", expand=True, padx=3, pady=1)
 
         self.tree = ttk.Treeview(grid_frame, selectmode="browse", show="headings")
         v_scroll = ttk.Scrollbar(grid_frame, orient="vertical", command=self.tree.yview)
@@ -85,7 +85,7 @@ class TablePage(tk.Frame):
     def on_filter_changed(self, event=None):
         if self.filter_after_id:
             self.after_cancel(self.filter_after_id)
-        self.filter_after_id = self.after(300, self.apply_filter)
+        self.filter_after_id = self.after(250, self.apply_filter)
 
     def apply_filter(self):
         self.filter_after_id = None

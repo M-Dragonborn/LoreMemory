@@ -36,3 +36,4 @@ def test_auth_full_flow():
     assert row[0] != "secret123"
     assert "secret123" not in row[0]
     assert len(row[1]) == 32  # 16 bytes hex
+

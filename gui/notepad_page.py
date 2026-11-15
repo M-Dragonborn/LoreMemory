@@ -20,14 +20,13 @@ class NotepadPage(tk.Frame):
     def setup_ui(self):
         p = get_palette()
         self.top_bar = tk.Frame(
-            self, bg=p["panel"], padx=10, pady=8,
+            self, bg=p["panel"], padx=8, pady=6,
             highlightbackground=p["border"], highlightthickness=1
         )
-        self.top_bar.pack(fill="x", side="top", padx=4, pady=4)
+        self.top_bar.pack(fill="x", side="top", padx=3, pady=3)
 
-        # Find bar (toggleable via Ctrl+F)
         self.find_bar = tk.Frame(
-            self, bg=p["panel"], padx=8, pady=4,
+            self, bg=p["panel"], padx=6, pady=4,
             highlightbackground=p["accent"], highlightthickness=1
         )
         self.find_entry = ttk.Entry(self.find_bar, width=20)
@@ -36,15 +35,14 @@ class NotepadPage(tk.Frame):
         ttk.Button(self.find_bar, text="‹", width=2, command=self.find_prev).pack(side="left", padx=2)
         ttk.Button(self.find_bar, text="›", width=2, command=self.find_next).pack(side="left", padx=2)
         ttk.Button(self.find_bar, text="×", width=2, command=self.hide_find_bar).pack(side="left", padx=2)
-        self.find_lbl = tk.Label(self.find_bar, text="", bg=p["panel"], fg=p["muted"], font=("Segoe UI", 9, "bold"))
-        self.find_lbl.pack(side="left", padx=6)
+        self.find_lbl = tk.Label(self.find_bar, text="", bg=p["panel"], fg=p["muted"], font=("Segoe UI", 9))
+        self.find_lbl.pack(side="left", padx=4)
 
-        # Main text area enclosed with distinct border
         text_frame = tk.Frame(
             self, bg=p["surface"],
-            highlightbackground=p["border_dark"], highlightthickness=1
+            highlightbackground=p["border"], highlightthickness=1
         )
-        text_frame.pack(fill="both", expand=True, padx=4, pady=2)
+        text_frame.pack(fill="both", expand=True, padx=3, pady=1)
 
         self.text = tk.Text(
             text_frame, wrap="word", font=("Consolas", 10),
@@ -58,10 +56,9 @@ class NotepadPage(tk.Frame):
         scroll.pack(side="right", fill="y")
         self.v_scroll = scroll
 
-        # Tags
         self.text.tag_configure("header", foreground=p["muted"], font=("Segoe UI", 9, "bold"))
         self.text.tag_configure("failed", foreground=p["danger"], font=("Segoe UI", 9, "bold"))
-        self.text.tag_configure("error_msg", foreground=p["danger"], font=("Consolas", 10, "bold"))
+        self.text.tag_configure("error_msg", foreground=p["danger"], font=("Consolas", 9, "bold"))
         self.text.tag_configure("sql", foreground=p["text"], font=("Consolas", 10))
         self.text.tag_configure("find_match", background="#fef08a", foreground="#000000")
         self.text.tag_configure("find_curr", background=p["accent"], foreground=p["accent_text"])
@@ -84,7 +81,7 @@ class NotepadPage(tk.Frame):
             self.load_more()
 
     def show_find_bar(self):
-        self.find_bar.pack(fill="x", side="top", before=self.text.master, padx=4, pady=2)
+        self.find_bar.pack(fill="x", side="top", before=self.text.master, padx=3, pady=2)
         self.find_entry.focus()
 
     def hide_find_bar(self):

@@ -18,9 +18,9 @@ class RowDialog(tk.Toplevel):
 
         card = tk.Frame(
             self, bg=p["surface"], padx=16, pady=16,
-            highlightbackground=p["border_dark"], highlightthickness=2
+            highlightbackground=p["border"], highlightthickness=1
         )
-        card.pack(fill="both", expand=True, padx=10, pady=10)
+        card.pack(fill="both", expand=True, padx=8, pady=8)
 
         row_idx = 0
         for col in self.columns:
@@ -97,9 +97,9 @@ class NewTableDialog(tk.Toplevel):
 
         card = tk.Frame(
             self, bg=p["surface"], padx=16, pady=16,
-            highlightbackground=p["border_dark"], highlightthickness=2
+            highlightbackground=p["border"], highlightthickness=1
         )
-        card.pack(fill="both", expand=True, padx=10, pady=10)
+        card.pack(fill="both", expand=True, padx=8, pady=8)
 
         tk.Label(card, text="Table Name:", bg=p["surface"], fg=p["text"], font=("Segoe UI", 10, "bold")).grid(row=0, column=0, sticky="w", pady=4)
         self.name_entry = ttk.Entry(card, width=30)
@@ -114,7 +114,7 @@ class NewTableDialog(tk.Toplevel):
         self.col_text = tk.Text(
             card, width=45, height=8, font=("Consolas", 10),
             bg=p["surface"], fg=p["text"], relief="solid", borderwidth=1,
-            highlightbackground=p["border_dark"], highlightthickness=1
+            highlightbackground=p["border"], highlightthickness=1
         )
         self.col_text.grid(row=2, column=0, columnspan=2, sticky="nsew", pady=4)
         self.col_text.insert("1.0", "id INTEGER PRIMARY KEY AUTOINCREMENT\nname TEXT NOT NULL\ncreated_at TEXT DEFAULT CURRENT_TIMESTAMP")

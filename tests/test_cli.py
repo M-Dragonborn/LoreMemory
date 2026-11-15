@@ -81,3 +81,4 @@ def test_cli_episode_and_pending(mem_cli):
     assert "working: 2" in out
     assert "unconsolidated: 0" in out
     assert "episodes: 1" in out
+

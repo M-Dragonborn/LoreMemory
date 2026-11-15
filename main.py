@@ -16,7 +16,7 @@ def hide_windows_console_if_double_clicked():
             if count == 1:
                 hwnd = kernel32.GetConsoleWindow()
                 if hwnd:
-                    user32.ShowWindow(hwnd, 0)  # SW_HIDE = 0
+                    user32.ShowWindow(hwnd, 0)
         except Exception:
             pass
 
@@ -25,6 +25,10 @@ def start_gui():
 
     root = tk.Tk()
     apply(root, "light")
+    try:
+        root.state("zoomed")
+    except Exception:
+        root.geometry("1200x800")
 
     def show_login():
         for w in root.winfo_children():

@@ -14,10 +14,10 @@ class ResultPage(tk.Frame):
         p = get_palette()
 
         self.top_bar = tk.Frame(
-            self, bg=p["panel"], padx=10, pady=8,
+            self, bg=p["panel"], padx=8, pady=6,
             highlightbackground=p["border"], highlightthickness=1
         )
-        self.top_bar.pack(fill="x", side="top", padx=4, pady=4)
+        self.top_bar.pack(fill="x", side="top", padx=3, pady=3)
 
         self.info_label = tk.Label(
             self.top_bar, text="", font=("Segoe UI", 9, "bold"),
@@ -27,9 +27,9 @@ class ResultPage(tk.Frame):
 
         grid_frame = tk.Frame(
             self, bg=p["surface"],
-            highlightbackground=p["border_dark"], highlightthickness=1
+            highlightbackground=p["border"], highlightthickness=1
         )
-        grid_frame.pack(fill="both", expand=True, padx=4, pady=2)
+        grid_frame.pack(fill="both", expand=True, padx=3, pady=1)
 
         self.tree = ttk.Treeview(grid_frame, selectmode="browse", show="headings")
         v_scroll = ttk.Scrollbar(grid_frame, orient="vertical", command=self.tree.yview)

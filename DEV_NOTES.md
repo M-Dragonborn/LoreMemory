@@ -11,3 +11,4 @@
 3. **Database-Wide vs Table History**: Failed commands (e.g. syntax errors) do not reach the authorizer and are recorded in the database-wide query log. Successful commands and table modifications are recorded in both database and per-table logs.
 4. **Console Window on Windows**: `main.py` checks `kernel32.GetConsoleProcessList`. If double-clicked (count == 1), it hides the console window; if run from a terminal or command prompt by an LLM, the console remains active for text input and output.
 5. **No SQLite in GUI**: All GUI modules interact exclusively via the abstraction layers (`Database`, `HistoryLog`, `Memory`, `auth`), maintaining modular separation.
+

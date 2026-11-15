@@ -13,11 +13,12 @@ SQL_KEYWORDS_SET = {
 class Console(tk.Frame):
     def __init__(self, parent, app):
         p = get_palette()
-        super().__init__(parent, bg=p["bg"], highlightbackground=p["border_dark"], highlightthickness=1)
+        super().__init__(parent, bg=p["bg"], highlightbackground=p["border"], highlightthickness=1)
         self.app = app
         self.history_commands = []
         self.history_index = -1
         self.last_command = ""
+        self.highlight_after_id = None
 
         self.setup_ui()
 
@@ -30,10 +31,10 @@ class Console(tk.Frame):
         top_pane = tk.Frame(paned, bg=p["bg"])
         paned.add(top_pane, weight=3)
 
-        # Output Area with clear border
+        # Output Area with soft border
         out_frame = tk.Frame(
             top_pane, bg=p["surface"],
-            highlightbackground=p["border_dark"], highlightthickness=1
+            highlightbackground=p["border"], highlightthickness=1
         )
         out_frame.pack(fill="both", expand=True, side="top", pady=(0, 4))
 
@@ -48,13 +49,13 @@ class Console(tk.Frame):
         out_scroll.pack(side="right", fill="y")
 
         self.output.tag_configure("cmd", foreground=p["text"], font=("Consolas", 9, "bold"))
-        self.output.tag_configure("outcome", foreground=p["muted"], font=("Consolas", 9, "italic"))
+        self.output.tag_configure("outcome", foreground=p["muted"], font=("Consolas", 9))
         self.output.tag_configure("error", foreground=p["danger"], font=("Consolas", 9, "bold"))
 
-        # Editor Area with prominent border outline
+        # Editor Area with soft 1px border
         ed_frame = tk.Frame(
             top_pane, bg=p["surface"],
-            highlightbackground=p["border_dark"], highlightthickness=2
+            highlightbackground=p["border"], highlightthickness=1
         )
         ed_frame.pack(fill="both", expand=True, side="bottom")
 
@@ -75,8 +76,8 @@ class Console(tk.Frame):
 
         # Button & Status Area with panel border
         bot_pane = tk.Frame(
-            paned, bg=p["panel"], padx=10, pady=8,
-            highlightbackground=p["border_dark"], highlightthickness=1
+            paned, bg=p["panel"], padx=8, pady=6,
+            highlightbackground=p["border"], highlightthickness=1
         )
         paned.add(bot_pane, weight=1)
 
@@ -84,7 +85,7 @@ class Console(tk.Frame):
             bot_pane, text="No pending changes", bg=p["panel"],
             fg=p["muted"], font=("Segoe UI", 9, "bold")
         )
-        self.pending_lbl.pack(anchor="w", pady=(0, 6))
+        self.pending_lbl.pack(anchor="w", pady=(0, 4))
 
         btn_row1 = tk.Frame(bot_pane, bg=p["panel"])
         btn_row1.pack(fill="x", pady=(0, 4))
@@ -93,10 +94,10 @@ class Console(tk.Frame):
         self.run_btn.pack(side="left", padx=(0, 4))
 
         self.commit_btn = ttk.Button(btn_row1, text="Commit", command=self.on_commit)
-        self.commit_btn.pack(side="left", padx=4)
+        self.commit_btn.pack(side="left", padx=3)
 
         self.rollback_btn = ttk.Button(btn_row1, text="Rollback", command=self.on_rollback)
-        self.rollback_btn.pack(side="left", padx=4)
+        self.rollback_btn.pack(side="left", padx=3)
 
         btn_row2 = tk.Frame(bot_pane, bg=p["panel"])
         btn_row2.pack(fill="x")
@@ -107,6 +108,12 @@ class Console(tk.Frame):
         ttk.Button(btn_row2, text="Clear", command=self.on_clear_output).pack(side="left", padx=2)
 
     def on_editor_key_release(self, event=None):
+        if self.highlight_after_id:
+            self.after_cancel(self.highlight_after_id)
+        self.highlight_after_id = self.after(100, self.apply_syntax_highlighting)
+
+    def apply_syntax_highlighting(self):
+        self.highlight_after_id = None
         content = self.editor.get("1.0", "end-1c")
         self.editor.tag_remove("keyword", "1.0", "end")
         for match in re.finditer(r"\b([A-Za-z_]+)\b", content):
@@ -128,18 +135,13 @@ class Console(tk.Frame):
             return self.recall_next()
 
     def recall_prev(self):
-        if not self.history_commands:
-            return "break"
-        if self.history_index == -1:
-            self.history_index = len(self.history_commands) - 1
-        elif self.history_index > 0:
-            self.history_index -= 1
+        if not self.history_commands: return "break"
+        self.history_index = len(self.history_commands) - 1 if self.history_index == -1 else max(0, self.history_index - 1)
         self.set_editor_text(self.history_commands[self.history_index])
         return "break"
 
     def recall_next(self):
-        if not self.history_commands or self.history_index == -1:
-            return "break"
+        if not self.history_commands or self.history_index == -1: return "break"
         if self.history_index < len(self.history_commands) - 1:
             self.history_index += 1
             self.set_editor_text(self.history_commands[self.history_index])
@@ -151,7 +153,7 @@ class Console(tk.Frame):
     def set_editor_text(self, text):
         self.editor.delete("1.0", "end")
         self.editor.insert("1.0", text)
-        self.on_editor_key_release()
+        self.apply_syntax_highlighting()
 
     def print_output(self, text, tag="outcome"):
         self.output.config(state="normal")
@@ -225,8 +227,7 @@ class Console(tk.Frame):
         self.app.update_pending()
 
     def on_table_history(self):
-        active_tbl = self.app.active_table
-        self.app.open_tab("history", active_tbl)
+        self.app.open_tab("history", self.app.active_table)
 
     def on_memory(self):
         self.app.open_tab("memory", None)
@@ -243,7 +244,5 @@ class Console(tk.Frame):
 
     def update_pending_status(self, is_pending):
         p = get_palette()
-        if is_pending:
-            self.pending_lbl.config(text="● Uncommitted changes", fg=p["danger"])
-        else:
-            self.pending_lbl.config(text="No pending changes", fg=p["muted"])
+        txt, col = ("● Uncommitted changes", p["danger"]) if is_pending else ("No pending changes", p["muted"])
+        self.pending_lbl.config(text=txt, fg=col)

@@ -108,3 +108,4 @@ def test_memory_expired_never_recalled(mem):
     res = m.recall("secret code")
     assert len(res) == 1
     assert "Permanent" in res[0]["text"]
+
