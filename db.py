@@ -32,14 +32,10 @@ class Database:
                 self.con = sqlite3.connect(
                     self.path, isolation_level=None, check_same_thread=False, timeout=10.0
                 )
-                self.con.execute("PRAGMA foreign_keys = ON")
-                try:
-                    self.con.execute("PRAGMA journal_mode = WAL")
-                    self.con.execute("PRAGMA synchronous = NORMAL")
-                    self.con.execute("PRAGMA cache_size = -64000")
-                    self.con.execute("PRAGMA temp_store = MEMORY")
-                    self.con.execute("PRAGMA mmap_size = 268435456")
-                except Exception: pass
+                for prg in ("foreign_keys = ON", "journal_mode = WAL", "synchronous = NORMAL",
+                            "cache_size = -64000", "temp_store = MEMORY", "mmap_size = 268435456"):
+                    try: self.con.execute(f"PRAGMA {prg}")
+                    except Exception: pass
                 return True
             except Exception:
                 self.close(); return False
@@ -48,10 +44,8 @@ class Database:
         with self.lock:
             self._schema_cache = None
             if self.con:
-                try:
-                    self.con.close()
-                except Exception:
-                    pass
+                try: self.con.close()
+                except Exception: pass
                 self.con, self.path = None, None
 
     @property
@@ -99,15 +93,10 @@ class Database:
                     target = a2
                 else:
                     target = None
-                if target and not target.startswith("sqlite_"):
-                    touched.add(target)
+                if target and not target.startswith("sqlite_"): touched.add(target)
                 return sqlite3.SQLITE_OK
 
-            error = None
-            columns = []
-            rows = []
-            truncated = False
-            rowcount = 0
+            error, columns, rows, truncated, rowcount = None, [], [], False, 0
             t0 = time.perf_counter()
             self.con.set_authorizer(authorizer)
             try:

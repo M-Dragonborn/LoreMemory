@@ -26,35 +26,39 @@ The application has two distinct halves:
 LoreMemory/
 ├── main.py                  # Entry point: GUI (no args) or CLI (with args)
 ├── config.py                # Global constants, paths, weights, and limits
-├── auth.py                  # User authentication (PBKDF2 HMAC SHA-256)
-├── db.py                    # Database class: connection, execution, query logging
+├── auth.py                  # User authentication (PBKDF2 HMAC SHA-256) & RBAC management
+├── db.py                    # Database class: WAL connection, PRAGMA tuning, cached schema & execution
 ├── history.py               # HistoryLog class: writes and queries history.db
 ├── memory.py                # Memory class: working and episodic memory engine
+├── mcp_server.py            # Model Context Protocol (MCP) stdio JSON-RPC server for LLMs
 ├── cli.py                   # Terminal commands used by LLMs
 ├── make_sample_db.py        # Seed script for sample/school.db and demo memory
 ├── LOREMEMORY_REFERENCE.md  # This developer reference
 ├── gui/                     # Tkinter / ttk graphical interface
 │   ├── __init__.py          # GUI package marker
-│   ├── theme.py             # Light/dark palettes and ttk styling
-│   ├── widgets.py           # Thread-safe background runner (queue + root.after)
+│   ├── theme.py             # Light/dark palettes, Treeview.Row border & ttk styling
+│   ├── widgets.py           # TreeGrid full-height divider manager & background worker
 │   ├── login.py             # LoginWindow modal form
 │   ├── main_window.py       # MainWindow 3-pane layout, coordinator, and status bar
-│   ├── sidebar.py           # Left navigation: DB menu, table list, theme toggle
-│   ├── tabs.py              # Custom tab strip with real clickable close (×) buttons
-│   ├── table_page.py        # Table grid tab (paging, sorting, debounced filter, CRUD)
-│   ├── result_page.py       # Result tab showing last SELECT query output
+│   ├── sidebar.py           # Regedit-style table tree navigator with symmetrical bottom toolbar
+│   ├── tabs.py              # Custom tab strip with real clickable close (×) buttons & instant switching
+│   ├── table_page.py        # Table grid tab (dynamic column sizing, row borders, CRUD)
+│   ├── result_page.py       # Result tab showing last SELECT query output with full grid
 │   ├── notepad_page.py      # Read-only notepad: HistoryPage and MemoryPage (Ctrl+F)
+│   ├── admin_page.py        # User & role administration panel with role audit trail
 │   ├── dialogs.py           # Add/Edit row dialogs, New Table dialog, dangerous warnings
-│   └── autocomplete.py      # Context-sensitive SQL autocomplete popup
-├── tests/                   # Pytest test suite
-│   ├── test_auth.py         # Authentication and hashing tests
+│   └── autocomplete.py      # Context-sensitive SQL autocomplete popup (<0.1ms cached)
+├── tests/                   # Pytest test suite (35 tests)
+│   ├── conftest.py          # Cross-platform Tcl/Tk library path bootstrap
+│   ├── test_auth.py         # Authentication, salt & RBAC tests
 │   ├── test_db.py           # Database CRUD, transactions, rollback, authorizer tests
 │   ├── test_history.py      # History logging, multi-user view, table rename tests
 │   ├── test_memory.py       # Working/episodic memory, recall abstention, TTL tests
+│   ├── test_mcp_server.py   # MCP stdio JSON-RPC server tests
 │   ├── test_cli.py          # Terminal CLI subcommand tests
-│   └── test_gui_smoke.py    # Headless GUI smoke tests
+│   └── test_gui_smoke.py    # Headless GUI smoke & tab switching tests
 └── data/                    # App data directory (created at runtime)
-    ├── users.db             # User accounts and login hashes
+    ├── users.db             # User accounts, roles, and role audit log
     ├── history.db           # Query history and touched tables
     └── memory.db           # Working and episodic AI memories (WAL mode)
 ```
@@ -70,8 +74,20 @@ CREATE TABLE IF NOT EXISTS users (
     username      TEXT NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
     salt          TEXT NOT NULL,
+    role          TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('super_admin', 'admin', 'user')),
+    is_active     INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
     created_at    TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     last_login    TEXT
+);
+
+CREATE TABLE IF NOT EXISTS role_audit_log (
+    audit_id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    target_user     TEXT NOT NULL,
+    old_role        TEXT NOT NULL,
+    new_role        TEXT NOT NULL,
+    changed_by_user TEXT NOT NULL,
+    changed_at      TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    reason          TEXT
 );
 ```
 
@@ -149,25 +165,44 @@ Defines operational constants:
 ---
 
 ### 4.2 `auth.py`
-Provides password hashing and credential verification:
-- `init_users(con)`: Ensures `PRAGMA foreign_keys = ON` and creates the `users` table.
+Provides password hashing, credential verification, and Role-Based Access Control (RBAC):
+- `init_users(con)`: Ensures `PRAGMA foreign_keys = ON`, creates `users` and `role_audit_log` tables.
 - `hash_password(password, salt_hex)`: Computes PBKDF2 HMAC SHA-256 with 100,000 iterations.
-- `register(con, username, password) -> bool`: Inserts a new user with a 16-byte random salt. Fails if user exists or inputs are empty.
-- `login(con, username, password) -> int | None`: Validates credentials using `hmac.compare_digest`. Updates `last_login = CURRENT_TIMESTAMP` and returns `user_id` on success.
+- `register(con, username, password) -> bool`: Inserts a new user with a 16-byte random salt. The first registered user is automatically assigned `super_admin`; subsequent users default to `user`. Fails if user exists or inputs are empty.
+- `login(con, username, password) -> int | None`: Validates credentials using `hmac.compare_digest`. Checks `is_active == 1`. Updates `last_login = CURRENT_TIMESTAMP` and returns `user_id` on success.
 - `login_user(username, password, path=None)` / `register_user(username, password, path=None)`: Connection-managed convenience wrappers for the GUI.
+- `get_user_role(con, username) -> str`: Returns the role (`super_admin`, `admin`, `user`).
+- `change_user_role(con, target_user, new_role, changed_by_user, reason="") -> bool`: Changes a user's role and logs the transition to `role_audit_log`. Prevents demoting the last `super_admin`.
+- `set_active(con, username, is_active) -> bool`: Activates or deactivates an account. Prevents deactivating the last `super_admin`.
+- `list_users(con) -> list[dict]`: Returns user details (`user_id`, `username`, `role`, `is_active`, `created_at`, `last_login`).
+- `list_role_audit(con, limit=100) -> list[dict]`: Fetches recent role change events from `role_audit_log`.
+- `change_password(con, username, new_password) -> bool`: Updates password hash with a fresh 16-byte salt.
 
 ---
 
 ### 4.3 `db.py`
-Executes SQL against user databases with thread locking, table detection, and history recording.
+Executes SQL against user databases with thread locking, table detection, history recording, and WAL performance tuning.
+
+#### WAL & Performance Tuning
+At database open, `db.py` executes:
+- `PRAGMA journal_mode = WAL;` (concurrent reader/writer performance)
+- `PRAGMA synchronous = NORMAL;` (optimal integrity with reduced disk flush overhead)
+- `PRAGMA cache_size = -64000;` (64 MB in-memory page cache)
+- `PRAGMA temp_store = MEMORY;` (in-memory temporary tables and indexes)
+- `PRAGMA mmap_size = 268435456;` (256 MB memory-mapped I/O)
+
+#### Schema Caching
+- `_schema_cache`: In-memory cache mapping table names to column metadata.
+- `invalidate_schema_cache()`: Flushes cache whenever DDL modifications (`CREATE`, `DROP`, `ALTER`) run.
+- `get_schema_only() -> list[dict]`: Fast schema retrieval without row counting (`SELECT COUNT(*)`), enabling <0.1 ms autocomplete lookup.
 
 #### Class `Result`
 Data container returned by execution:
 - Attributes: `columns` (list), `rows` (list), `truncated` (bool), `rowcount` (int), `tables` (set of touched table names), `error` (str or None), `elapsed_ms` (float).
 
 #### Class `Database`
-- `open(path, create=False) -> bool`: Normalizes path with `os.path.normcase(os.path.realpath(path))`. Opens connection with `isolation_level=None`, `check_same_thread=False`, and `timeout=5.0`. Enables `PRAGMA foreign_keys = ON`.
-- `close()`: Safely closes open connection.
+- `open(path, create=False) -> bool`: Normalizes path with `os.path.normcase(os.path.realpath(path))`. Opens connection with `isolation_level=None`, `check_same_thread=False`, and `timeout=5.0`. Enables `PRAGMA foreign_keys = ON` and performance PRAGMAs.
+- `close()`: Safely closes open connection and clears schema cache.
 - `has_pending`: Property returning `bool(con and con.in_transaction)`.
 - `commit()` / `rollback()`: Manually commits or rolls back pending transactions.
 - `is_dangerous(sql) -> str | None`: Checks for `DROP` statements or `DELETE`/`UPDATE` without a `WHERE` clause. Returns user-facing warning or `None`.
@@ -176,11 +211,12 @@ Data container returned by execution:
   2. Installs SQLite authorizer callback to record touched tables.
   3. Executes query, limits rows to `ROW_LIMIT`, measures elapsed time.
   4. Automatically intercepts `ALTER TABLE x RENAME TO y` to call `history.rename_table`.
-  5. Immediately records execution in `HistoryLog`.
+  5. Invalidates schema cache on DDL.
+  6. Immediately records execution in `HistoryLog`.
 - `run_script(text) -> list[Result]`: Parses multiple statements across semicolons and runs each through `run()`. Halts execution on the first error.
 - `get_tables() -> list[str]`: Returns table names from `sqlite_master` excluding internal `sqlite_%` tables.
 - `get_columns(table) -> list[dict]`: Queries `PRAGMA table_info` and `PRAGMA foreign_key_list`. Returns column metadata dicts: `name`, `type`, `notnull`, `default`, `pk`, `fk`.
-- `get_table_info() -> list[dict]`: Returns list of dicts with `name`, `columns`, and `row_count` (`SELECT COUNT(*)`). Used for the sidebar and autocomplete.
+- `get_table_info() -> list[dict]`: Returns list of dicts with `name`, `columns`, and `row_count` (`SELECT COUNT(*)`). Used for the sidebar.
 - `get_rows(table, page, page_size=100, order_by=None, descending=False, search="") -> (cols, rows, total)`: Paginated fetch with search across columns using `LIKE ?`. If table has no primary key, automatically prepends `rowid AS _rowid`. Browsing queries are not logged to history.
 - `insert_row(table, data_dict)`: Builds parametrized `INSERT` statement and runs via `run()`.
 - `update_row(table, pk_col, pk_val, data_dict)`: Builds parametrized `UPDATE` statement and runs via `run()`.
@@ -236,29 +272,56 @@ Terminal interface for local LLMs:
 ### 4.7 GUI Modules (`gui/`)
 
 - **`theme.py`**:
-  - `apply(root, mode)`: Configures ttk clam theme with Segoe UI and Consolas fonts. Palettes define background, surface, text, muted, accent (blue), border, and status colors.
+  - `apply(root, mode)`: Configures ttk clam theme with Segoe UI and Consolas fonts. Palettes define background, surface, text, muted, accent (blue), border, gridline, alternating row, danger, and success colors.
+  - Configures `Treeview.Row` with 1px solid bottom border (`bordercolor=p["grid_line"]`).
+  - Provides subtle grid palette: Light (`#cbd5e1` gridlines, `#f1f5f9` alt rows) / Dark (`#334155` gridlines, `#1e293b` alt rows).
+  - Creates dedicated unbordered `Sidebar.Treeview` layout for Registry Editor style explorer.
 - **`widgets.py`**:
+  - `TreeGrid`: Wraps `ttk.Treeview` with dynamic 2D vertical divider overlays (`ttk.Separator`, `relheight=1.0`), automatic horizontal scroll sync (`xscrollcommand`), debounced `<Configure>` geometry recalculation via `root.after_idle` to prevent layout thrashing/jitter, click-event pass-through, and `apply_theme()`.
   - `run_in_background(root, work, done)`: Executes `work()` in a thread, sends `(result, error)` through a `queue.Queue`, and polls with `root.after` to execute `done()` safely on the main GUI thread.
 - **`login.py` (`LoginWindow`)**:
   - Wordmark, Username, Password (masked), Login button, Create account link, and real-time validation error messaging.
 - **`main_window.py` (`MainWindow`)**:
   - 3-pane layout (`PanedWindow`), status bar, safe closing/logout prompts (checks running threads and uncommitted transactions).
 - **`sidebar.py` (`Sidebar`)**:
-  - Database dropdown menu (Open, New, Close), `TABLES` list with live row counts, `+` button for New Table dialog, `‹`/`›` collapse handle (`Ctrl+B`), user label, Logout, and `☾` dark mode toggle.
+  - Windows Registry Editor style hierarchical treeview (`Databases > Tables > Columns`) with expandable branch icons (`▾` / `▸`), bold primary database headers, and regular table nodes.
+  - Debounced single/double-click routing preventing redundant reloads when clicking an active table.
+  - Symmetrical bottom toolbar:
+    - Identity row: `👤 <username>` on the left with `[ ROLE ]` pill badge on the right.
+    - Balanced 3-button grid: `[ ⚙ Admin ]`, `[ ⎋ Logout ]`, and `[ ☾ / ☀ ]` with identical heights, 1px borders, and padding.
 - **`tabs.py` (`TabStrip`)**:
-  - Browser-style tab strip with clickable close `×` buttons. Manages Table, Result, History, and Memory tabs.
+  - Browser-style tab strip with clickable close `×` buttons. Manages Table, Result, History, Memory, and Admin tabs.
+  - Instant tab switching via `select()` without redundant data reloading.
 - **`table_page.py` (`TablePage`)**:
-  - Interactive grid (`Treeview`), 100-row paging, sort column toggle (▲/▼), debounced live filter (300 ms), Add/Edit/Delete row modal buttons, and table history button.
+  - Interactive grid powered by `TreeGrid` with 100-row paging, sort column toggle (▲/▼), debounced live filter (300 ms), Add/Edit/Delete row modal buttons, and table history button.
+  - Dynamic column auto-sizing measuring header and initial 15 cell strings with cached font metrics (clamped between 50px and 380px).
+  - Batch row deletion (`delete(*children)`) eliminating UI stutter.
 - **`result_page.py` (`ResultPage`)**:
-  - Read-only grid displaying SELECT query results with row counts, execution time, and truncation notes.
+  - Read-only grid powered by `TreeGrid` displaying SELECT query results with dynamic column sizing, row borders, execution time, and truncation notes.
 - **`notepad_page.py` (`NotepadPage`, `HistoryPage`, `MemoryPage`)**:
   - Read-only scrollable console. Auto-loads `HISTORY_BATCH` (500) items with infinite scroll on reach bottom. Features built-in `Ctrl+F` find bar with Next/Previous highlighting.
+- **`admin_page.py` (`AdminPage`)**:
+  - User and role administration panel for `admin` and `super_admin` users.
+  - Allows promoting/demoting user roles (`super_admin`, `admin`, `user`), activating/deactivating accounts, and viewing chronological audit logs from `role_audit_log`.
 - **`dialogs.py`**:
   - `RowDialog`: Auto-detects column types for adding/editing records.
   - `NewTableDialog`: Form for table creation (`CREATE TABLE`).
   - `confirm_dangerous`: Confirmation prompt for dangerous SQL.
 - **`autocomplete.py` (`AutocompletePopup`)**:
-  - Contextual SQL suggestions (keywords, table names after `FROM`/`JOIN`, columns after `table.`). Navigable via `Up`/`Down`, accepted via `Tab`.
+  - Fast context-sensitive SQL suggestions (<0.1 ms latency using `db.get_schema_only()`).
+  - Suggests keywords, table names after `FROM`/`JOIN`, columns after `table.`. Navigable via `Up`/`Down`, accepted via `Tab`.
+
+---
+
+### 4.8 `mcp_server.py`
+Standard Model Context Protocol (MCP) stdio JSON-RPC server enabling direct integration with AI desktop clients and external LLM agents.
+- **Protocol**: JSON-RPC 2.0 over standard input/output (`stdin`/`stdout`).
+- **Exposed Tools**:
+  - `recall`: Queries episodic and working memory using hybrid vector/keyword scoring.
+  - `remember`: Saves new working memory entry with importance score and session tag.
+  - `recent`: Lists latest memories across working and episodic tiers.
+  - `consolidate`: Folds expired working memories into summarized episodes.
+  - `query_sql`: Runs arbitrary SQL against a specified database file with safety checks and query logging.
 
 ---
 
@@ -285,10 +348,18 @@ Terminal interface for local LLMs:
 ## 6. Testing & Building
 
 ### Running Unit Tests
-Run pytest from the project root:
+Run the test suite (35 automated tests covering unit, integration, CLI, MCP, and GUI smoke tests) from the project root:
 ```bash
 py -3.13 -m pytest tests/
 ```
+The test suite includes:
+- `test_auth.py`: PBKDF2 hashing, user registration, login verification, role management, audit logging, and account deactivation.
+- `test_db.py`: Database operations, foreign keys, rollback, DDL table detection via authorizer, WAL pragmas, schema cache, and dangerous query guards.
+- `test_history.py`: History logging, table renames, multi-user audit views, and pagination offsets.
+- `test_memory.py`: Working/episodic memory tiering, hybrid recall scoring, abstention rules, consolidation, and TTL expiration.
+- `test_cli.py`: Subcommand execution, argument parsing, session tags, and terminal output formatting.
+- `test_mcp_server.py`: Model Context Protocol stdio JSON-RPC handshake, tool enumeration, and tool execution (`recall`, `remember`, `recent`, `consolidate`, `query_sql`).
+- `test_gui_smoke.py`: Headless initialization of all GUI windows, `TreeGrid` geometry management, dialogs, and instant tab switching.
 
 ### Packaging Windows Standalone Executable
 Build with PyInstaller:

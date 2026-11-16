@@ -36,27 +36,36 @@ The app is not a web app. It needs no server and no account on the internet. The
 loremory/
   main.py              no arguments: login and GUI. with arguments: terminal commands (cli.py)
   config.py            constants (paths, limits, memory weights)
-  auth.py              register and login
-  db.py                Database class: the only code that touches a user database
+  auth.py              register, login and role-based access control (RBAC)
+  db.py                Database class: WAL tuning, cached schema, authorizer, execution
   history.py           HistoryLog class: writes and reads history.db
   memory.py            Memory class: working and episodic memory
+  mcp_server.py        stdio JSON-RPC server implementing Model Context Protocol for LLMs
   cli.py               terminal commands the LLM uses for memory
   make_sample_db.py    builds sample/school.db for demos
   gui/
     login.py           LoginWindow
     main_window.py     MainWindow: three panes, menu, status bar
     console.py         right-hand console: output, editor, button area
-    sidebar.py         left navigation pane: database menu, tables, user
-    table_page.py      middle tab for one table: grid, paging, sort, filter, row buttons
-    result_page.py     middle tab that shows the last SELECT result
-    tabs.py            tab strip for the middle area, with close buttons
-    dialogs.py         add or edit row form (the new table form is built last)
+    sidebar.py         left navigation pane: hierarchical database tree, tables, symmetrical toolbar
+    table_page.py      middle tab for one table: 2D grid, dynamic column sizing, paging, sort, filter, CRUD
+    result_page.py     middle tab that shows the last SELECT result with full-height grid dividers
+    tabs.py            tab strip for the middle area, with close buttons and instant switching
+    dialogs.py         add or edit row form, new table form, dangerous warning prompt
     notepad_page.py    read-only notepad pages: command history and memory
-    autocomplete.py    Tab-completion popup for the console (built last)
-    theme.py           light and dark colours
-    widgets.py         small shared helpers (threads, trees, text boxes)
+    admin_page.py      user administration, role modification, account status, role audit log
+    autocomplete.py    fast context-sensitive SQL popup (<0.1ms via cached schema)
+    theme.py           light and dark palettes, Treeview.Row 1px border, gridline colors
+    widgets.py         TreeGrid 2D vertical divider overlay, debounced geometry sync, thread helper
   tests/
-    test_auth.py  test_db.py  test_history.py  test_memory.py  test_cli.py
+    conftest.py        cross-platform Tcl/Tk library path bootstrap
+    test_auth.py       authentication, salt hashing, role changes, audit log
+    test_db.py         CRUD, authorizer table logging, WAL pragmas, schema cache
+    test_history.py    history logging, table rename propagation, multi-user view
+    test_memory.py     working/episodic memory, abstention rules, consolidation
+    test_mcp_server.py MCP JSON-RPC protocol handshake, tool list, tool executions
+    test_cli.py        terminal subcommands, session env tags, return codes
+    test_gui_smoke.py  headless GUI window creation, TreeGrid, instant tab switching
   data/                created at runtime: users.db, history.db, memory.db
 ```
 
@@ -64,9 +73,9 @@ Rule: the gui folder never imports sqlite3. It only calls auth, db, history and 
 
 ## 5. Data stores and schemas
 
-The app owns three SQLite files in data/. The user's own database files are never given any LoreMemory tables. Every connection to an app file must run `PRAGMA foreign_keys = ON` right after connecting (SQLite does not enforce foreign keys otherwise). Timestamps are stored as UTC text from CURRENT\_TIMESTAMP.
+The app owns three SQLite files in data/. The user's own database files are never given any LoreMemory tables. Every connection to an app file must run `PRAGMA foreign_keys = ON` right after connecting (SQLite does not enforce foreign keys otherwise). Timestamps are stored as UTC text from CURRENT_TIMESTAMP.
 
-### 5.1 users.db (login)
+### 5.1 users.db (login & RBAC)
 
 ```sql
 CREATE TABLE IF NOT EXISTS users (
@@ -74,10 +83,24 @@ CREATE TABLE IF NOT EXISTS users (
     username      TEXT NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
     salt          TEXT NOT NULL,
+    role          TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('super_admin', 'admin', 'user')),
+    is_active     INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
     created_at    TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     last_login    TEXT
 );
+
+CREATE TABLE IF NOT EXISTS role_audit_log (
+    audit_id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    target_user     TEXT NOT NULL,
+    old_role        TEXT NOT NULL,
+    new_role        TEXT NOT NULL,
+    changed_by_user TEXT NOT NULL,
+    changed_at      TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    reason          TEXT
+);
 ```
+
+The first registered user is automatically assigned `super_admin`. Subsequent users receive `user`. Only `super_admin` and `admin` roles have access to user management in the Admin panel. Deactivating or demoting the last `super_admin` is disallowed. Role modifications are permanently logged to `role_audit_log`.
 
 ### 5.2 history.db (manual half: command log)
 
@@ -145,24 +168,27 @@ Constants only: DATA\_DIR, file names of the three app databases, ROW\_LIMIT = 1
 
 ### 6.2 auth.py
 
-- `init_users(con)`: create the users table.
-- `register(con, username, password) -> bool`: False if the username exists or either field is empty.
-- `login(con, username, password) -> int | None`: returns user\_id on success, updates last\_login, returns None otherwise.
-- Hash with hashlib.pbkdf2\_hmac using sha256, 100000 rounds and a random 16-byte salt stored as hex. Compare with hmac.compare\_digest. Never store a plain password.
+- `init_users(con)`: create the `users` and `role_audit_log` tables with foreign keys enabled.
+- `register(con, username, password) -> bool`: False if the username exists or either field is empty. Automatically assigns the `super_admin` role to the first user created, and `user` to all subsequent accounts.
+- `login(con, username, password) -> int | None`: returns user_id on success if `is_active == 1`, updates last_login, returns None otherwise.
+- Hash with hashlib.pbkdf2_hmac using sha256, 100000 rounds and a random 16-byte salt stored as hex. Compare with hmac.compare_digest. Never store a plain password.
+- RBAC methods: `get_user_role(con, username)`, `change_user_role(con, target_user, new_role, changed_by_user, reason)`, `set_active(con, username, is_active)`, `list_users(con)`, `list_role_audit(con, limit)`, and `change_password(con, username, new_password)`. Guard against demoting or deactivating the last remaining `super_admin`.
 
 ### 6.3 db.py: class Database
 
-The only module that executes SQL against a user's database. It receives a HistoryLog and the current user\_id, and logs every command itself.
+The only module that executes SQL against a user's database. It receives a HistoryLog and the current user_id, and logs every command itself.
 
-- `open(path, create=False)` and `close()`. Normalize the path with os.path.normcase(os.path.realpath(path)) and use that form everywhere, including in history. Open the connection with isolation\_level=None, so the app controls transactions itself (see the transaction rule below), and connect with timeout=5 so a locked file waits a few seconds before the readable error database is locked is shown.
-- `run(sql, params=()) -> Result`. Result is a small plain class with these attributes: columns, rows (at most ROW\_LIMIT, using fetchmany), truncated (bool), rowcount, tables (set of names), error (text or None), elapsed\_ms (how long the command took).
-- Finding the tables a command touched: before executing, set a connection authorizer with con.set\_authorizer(callback). The callback receives (action, arg1, arg2, dbname, source). For the actions SQLITE\_READ, SQLITE\_INSERT, SQLITE\_UPDATE, SQLITE\_DELETE, SQLITE\_CREATE\_TABLE and SQLITE\_DROP\_TABLE, add arg1 (the table name) to the set. For SQLITE\_ALTER\_TABLE, SQLITE\_CREATE\_INDEX and SQLITE\_DROP\_INDEX, add arg2 instead, because for those actions arg1 is the database name or the index name (for ALTER, arg1 is main, not the table). Skip empty names and names that start with sqlite\_, then return sqlite3.SQLITE\_OK. A new table's CREATE TABLE is therefore tagged with that table, so every table's history starts with its CREATE. After a successful ALTER TABLE x RENAME TO y (not RENAME COLUMN), call history.rename\_table(db\_path, x, y) so the history follows the new name. Find x and y with a regular expression on the command text, and allow the names to be quoted. Always clear the authorizer afterwards in a finally block.
+- `open(path, create=False)` and `close()`. Normalize the path with os.path.normcase(os.path.realpath(path)) and use that form everywhere, including in history. Open the connection with isolation_level=None, so the app controls transactions itself (see the transaction rule below), and connect with timeout=5 so a locked file waits a few seconds before the readable error database is locked is shown.
+- Tuning PRAGMAs at open: `journal_mode = WAL`, `synchronous = NORMAL`, `cache_size = -64000` (64MB page cache), `temp_store = MEMORY`, and `mmap_size = 268435456` (256MB memory mapping).
+- Schema caching: maintains `_schema_cache` for instant lookup; invalidates on DDL; provides `get_schema_only()` for fast autocomplete (<0.1ms) without executing full-table row counts.
+- `run(sql, params=()) -> Result`. Result is a small plain class with these attributes: columns, rows (at most ROW_LIMIT, using fetchmany), truncated (bool), rowcount, tables (set of names), error (text or None), elapsed_ms (how long the command took).
+- Finding the tables a command touched: before executing, set a connection authorizer with con.set_authorizer(callback). The callback receives (action, arg1, arg2, dbname, source). For the actions SQLITE_READ, SQLITE_INSERT, SQLITE_UPDATE, SQLITE_DELETE, SQLITE_CREATE_TABLE and SQLITE_DROP_TABLE, add arg1 (the table name) to the set. For SQLITE_ALTER_TABLE, SQLITE_CREATE_INDEX and SQLITE_DROP_INDEX, add arg2 instead, because for those actions arg1 is the database name or the index name (for ALTER, arg1 is main, not the table). Skip empty names and names that start with sqlite_, then return sqlite3.SQLITE_OK. A new table's CREATE TABLE is therefore tagged with that table, so every table's history starts with its CREATE. After a successful ALTER TABLE x RENAME TO y (not RENAME COLUMN), call history.rename_table(db_path, x, y) so the history follows the new name. Find x and y with a regular expression on the command text, and allow the names to be quoted. Always clear the authorizer afterwards in a finally block.
 - A syntax error never reaches the point where tables are known, so the failed command has no table rows. That is accepted: it appears only on the database-wide history page.
 - `run` catches sqlite3.Error and returns it in Result.error. It never raises to the GUI. Transaction rule: before running INSERT, UPDATE, DELETE, REPLACE, CREATE, DROP or ALTER, run issues BEGIN if no transaction is open yet. SELECT, PRAGMA, VACUUM, ATTACH, DETACH and the transaction commands themselves get no automatic BEGIN. With this rule, structure changes (CREATE, DROP, ALTER) can be rolled back like row changes, until the user presses Commit.
-- `run_script(text) -> list[Result]`: split the text into single statements using sqlite3.complete\_statement and run each through `run`. Do not use executescript, because it commits silently and cannot report tables per statement.
-- `get_tables()`, `get_columns(table)`: use PRAGMA table\_info and PRAGMA foreign\_key\_list. Each column reports name, type, not-null, default, primary key flag and the foreign key target if any. Quote table names in PRAGMA calls.
+- `run_script(text) -> list[Result]`: split the text into single statements using sqlite3.complete_statement and run each through `run`. Do not use executescript, because it commits silently and cannot report tables per statement.
+- `get_tables()`, `get_columns(table)`: use PRAGMA table_info and PRAGMA foreign_key_list. Each column reports name, type, not-null, default, primary key flag and the foreign key target if any. Quote table names in PRAGMA calls.
 - `insert_row`, `update_row`, `delete_row`: build parametrized SQL, execute through `run`, and log a readable version of the command.
-- `commit()`, `rollback()`, and the property `has_pending` (connection.in\_transaction).
+- `commit()`, `rollback()`, and the property `has_pending` (connection.in_transaction).
 - `is_dangerous(sql) -> str | None`: returns a warning text for DROP statements, and for DELETE or UPDATE statements that have no WHERE clause. The GUI must ask the user to confirm before running such a command, and the message says the change can be undone with Rollback until Commit.
 
 Logging rule: every command is logged immediately, whether it succeeds or fails, and whether it is later rolled back. History is a record of what was run.
@@ -199,6 +225,17 @@ See section 8 for the behavior. The terminal commands in 6.6 and the GUI Memory 
 - `consolidate [--hours N]`: the plain automatic version (section 8). Prints how many episodes were created.
 - `importance ID VALUE [--episode]`: set importance from 0 to 1 on a working memory, or on an episode with --episode.
 - `stats`: counts of working memories, unconsolidated ones, episodes and rows with embeddings.
+
+### 6.7 mcp_server.py: Model Context Protocol (MCP) Server for LLMs
+
+- Standard stdio JSON-RPC 2.0 transport implementing the Model Context Protocol (MCP).
+- Invoked via `python mcp_server.py` or configured inside desktop AI clients (such as Claude Desktop or Cursor).
+- Tools exposed to LLMs:
+  - `recall`: Hybrid retrieval from episodic and working memory.
+  - `remember`: Save new working memory items with importance and optional session tags.
+  - `recent`: Retrieve newest memories across both tiers.
+  - `consolidate`: Fold pending working memories into summarized episodes.
+  - `query_sql`: Execute arbitrary SQL commands with safety checks and automatic audit logging.
 
 ## 7. Behavior rules
 
@@ -259,29 +296,35 @@ Three panes side by side, separated by thin draggable dividers (ttk.PanedWindow)
 ### 9.4 Navigation pane (left)
 
 - Top: the open database's file name in bold with a ▾ that opens a small menu: Open database, New database, Close database.
-- Under it a small muted label TABLES and the list of tables, each row with the name on the left and the row count in grey on the right. The selected row has a soft blue tint. A small + next to TABLES opens the New Table dialog (built last).
-- Bottom: the username, a Log out link, and a ☾ button for dark mode (built last).
+- Registry Editor style hierarchy: under the header, an interactive Treeview displays Databases in bold, Tables in regular weight, and expandable columns with branch icons (`▾` / `▸`). Live row counts are shown next to each table. A small + next to the header opens the New Table dialog.
+- Symmetrical bottom toolbar:
+  - User identity row: `👤 <username>` on the left with `[ ROLE ]` pill badge on the right (`SUPER_ADMIN`, `ADMIN`, `USER`).
+  - Symmetrical 3-button action grid: `[ ⚙ Admin ]`, `[ ⎋ Logout ]`, and `[ ☾ / ☀ ]` sharing equal height, padding, and 1px borders.
 - A small ‹ handle on the pane's edge collapses it, and Ctrl+B does the same. The middle area takes the freed width, and a › handle brings the pane back.
-- Clicking a table opens it in a tab in the middle area, or switches to its tab if it is already open.
+- Clicking a table opens it in a tab in the middle area, or switches to its tab if it is already open. Redundant clicks on the currently active table are debounced without re-querying the database.
 - The list reloads after any command that changes data or structure, so counts and new or dropped tables are always current.
 
 ### 9.5 Middle area: tabs
 
-A row of small tab labels with a × on each, like a browser. Build the strip from labels and a stack of frames raised with tkraise, not with ttk.Notebook, so that the × is a real clickable widget (tabs.py). There are four kinds of tab:
+A row of small tab labels with a × on each, like a browser. Build the strip from labels and a stack of frames raised with tkraise, not with ttk.Notebook, so that the × is a real clickable widget (tabs.py). There are five kinds of tab:
 
 - **Table tab**, one per open table (9.6).
-- **Result tab**, only one. It shows the last SELECT result, and every new SELECT replaces what it shows. It uses the same grid as the table page, read-only, with no paging (at most ROW\_LIMIT rows).
+- **Result tab**, only one. It shows the last SELECT result, and every new SELECT replaces what it shows. It uses the same grid as the table page, read-only, with no paging (at most ROW_LIMIT rows).
 - **History tab**, titled History: students (9.8).
 - **Memory tab**, only one (9.8).
+- **Admin tab**, opened via the Admin button in the sidebar (9.13).
 
-Closing a table tab also closes its history tab. If a table is dropped, its tab and its history tab close. If a table is renamed, both take the new name. When nothing is open, the area shows a muted hint: Open a table from the left.
+Instant tab switching: clicking a tab calls `select()` to raise the page frame without re-querying the database, eliminating switching stutter. Closing a table tab also closes its history tab. If a table is dropped, its tab and its history tab close. If a table is renamed, both take the new name. When nothing is open, the area shows a muted hint: Open a table from the left.
 
 ### 9.6 Table page
 
-- A grid (ttk.Treeview) with 100 rows per page, Previous and Next buttons and a label such as Page 2 of 7 (640 rows).
+- A 2D grid (`TreeGrid` in `gui/widgets.py` wrapping `ttk.Treeview`) featuring 1px horizontal row borders (`Treeview.Row` `bordercolor`) and dynamic full-height vertical dividers (`ttk.Separator`, `relheight=1.0`). Line colors flip between subtle light (`#cbd5e1`) and dark (`#334155`).
+- Dynamic column auto-sizing: column widths are calculated from the max text width of the header and first 15 sample rows using cached font measurement (clamped between 50px and 380px).
+- Debounced geometry updates: geometry adjustments are scheduled via `root.after_idle` to prevent layout thrashing and jitter during resizing.
+- 100 rows per page, Previous and Next buttons, and a label such as Page 2 of 7 (640 rows).
 - Clicking a column header sorts by it, and clicking again reverses the order (▲ or ▼ next to the name).
 - A filter box above the grid filters the rows live across all columns, waiting about 300 ms after typing stops.
-- Buttons: Add Row, Edit Selected, Delete Selected. Add and Edit open a modal form with one field per column, chosen by the declared type (integer entry, number entry, text entry; BLOB columns are skipped). A blank field on insert lets the default apply. A blank field on edit stores NULL, or shows an error if the column is not null. Delete asks for confirmation. All three go through Database.run and are logged, and afterwards the page, the table list counts and the pending indicator refresh.
+- Buttons: Add Row, Edit Selected, Delete Selected. Add and Edit open a modal form with one field per column, chosen by the declared type (integer entry, number entry, text entry; BLOB columns are skipped). A blank field on insert lets the default apply. A blank field on edit stores NULL, or shows an error if the column is not null. Delete asks for confirmation. Batch row deletion (`delete(*children)`) prevents GUI freezes during large refreshes. All three go through Database.run and are logged, and afterwards the page, the table list counts and the pending indicator refresh.
 - Browsing (paging, sorting, filtering) is not logged.
 - At the bottom of the page an Open table history button opens the History tab for this table (9.8).
 - Column names and types are visible in the grid headers. There is no separate structure view: structure is changed from the console.
@@ -354,12 +397,25 @@ Do these by hand after each build step, because pytest cannot check windows.
 - Memory: run LoreMemory.exe remember with some text in a terminal, open the Memory tab, and the new memory is there.
 - Layout: collapse the navigation pane with the handle and with Ctrl+B, close tabs with the ×, resize the window, and close the window while a query is running (it must ask first) and with uncommitted changes (it must ask to commit, roll back or cancel).
 
+### 9.13 Admin page (gui/admin_page.py)
+
+Accessible to `super_admin` and `admin` roles via the symmetrical Admin button in the bottom-left sidebar toolbar:
+- User table: displays username, role, active status, creation timestamp, and last login.
+- Action controls: role change dropdown (`super_admin`, `admin`, `user`), account activate/deactivate toggle, and password change modal.
+- Safety guards: prohibits demoting or deactivating the last remaining `super_admin`.
+- Role audit trail: displays chronological events from `role_audit_log` (target user, old role, new role, changed by, timestamp, reason).
+
 ## 10. Tests (pytest)
 
-- **test\_auth:** register works, duplicate username fails, correct password logs in, wrong password and unknown user return None, no plain password is stored.
-- **test\_db:** run a SELECT, INSERT, UPDATE, CREATE and DROP in a temporary database; the tables set is right for a JOIN; a syntax error returns Result.error and does not raise; rollback undoes an uncommitted insert, a DROP TABLE and an ALTER TABLE; ALTER TABLE, CREATE INDEX and DROP INDEX are tagged with the right table; get\_rows paging, sorting and search work; get\_table\_info returns row counts; foreign keys are enforced on the user's database; the 1000-row limit sets truncated; is\_dangerous flags DROP and DELETE without WHERE only.
-- **test\_history:** a JOIN logs two table rows, the history for a table includes commands from two different users, a failed command appears in the database-wide view but not in a table view, a new table's history starts with its CREATE command, renaming a table moves its history to the new name, and the offset returns the next batch of entries.
-- **test\_memory:** foreign key rejects a working memory pointing at a missing episode, consolidation sets episode\_id and creates one episode, deleting an episode sets episode\_id back to NULL, recall returns an empty list when nothing matches, save\_episode links the given working memories to one episode and refuses ones already consolidated, an expired memory is never recalled, and everything passes with embeddings disabled. test\_cli (memory file in a temporary folder, embeddings off) runs remember, recall and stats through cli.run and checks the output and the exit codes.
+The test suite contains 35 passing automated tests across 7 test modules:
+
+- **test_auth:** register works, duplicate username fails, correct password logs in, wrong password and unknown user return None, no plain password is stored; first user gets `super_admin`; role changes, audit logging, and account deactivation are verified; demoting or deactivating the last `super_admin` is rejected.
+- **test_db:** run a SELECT, INSERT, UPDATE, CREATE and DROP in a temporary database; the tables set is right for a JOIN; a syntax error returns Result.error and does not raise; rollback undoes an uncommitted insert, a DROP TABLE and an ALTER TABLE; ALTER TABLE, CREATE INDEX and DROP INDEX are tagged with the right table; get_rows paging, sorting and search work; get_table_info returns row counts; foreign keys are enforced on the user's database; the 1000-row limit sets truncated; is_dangerous flags DROP and DELETE without WHERE only; WAL pragmas and schema caching are verified.
+- **test_history:** a JOIN logs two table rows, the history for a table includes commands from two different users, a failed command appears in the database-wide view but not in a table view, a new table's history starts with its CREATE command, renaming a table moves its history to the new name, and the offset returns the next batch of entries.
+- **test_memory:** foreign key rejects a working memory pointing at a missing episode, consolidation sets episode_id and creates one episode, deleting an episode sets episode_id back to NULL, recall returns an empty list when nothing matches, save_episode links the given working memories to one episode and refuses ones already consolidated, an expired memory is never recalled, and everything passes with embeddings disabled.
+- **test_cli:** terminal commands (memory file in a temporary folder, embeddings off) runs remember, recall and stats through cli.run and checks the output and the exit codes.
+- **test_mcp_server:** tests Model Context Protocol stdio JSON-RPC initialization handshake, tool enumeration, and tool execution (`recall`, `remember`, `recent`, `consolidate`, `query_sql`).
+- **test_gui_smoke:** verifies headless creation of all GUI frames and dialogs, `TreeGrid` 2D vertical divider placement, and instant tab switching without data reload.
 
 ## 11. Build order and acceptance
 

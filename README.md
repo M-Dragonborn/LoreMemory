@@ -3,7 +3,7 @@
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue.svg)](https://www.python.org/)
 [![Database](https://img.shields.io/badge/sqlite-3-green.svg)](https://www.sqlite.org/)
 [![Dependencies](https://img.shields.io/badge/dependencies-zero%20external-orange.svg)](#dependencies)
-[![Tests](https://img.shields.io/badge/tests-34%20passed-brightgreen.svg)](#testing)
+[![Tests](https://img.shields.io/badge/tests-35%20passed-brightgreen.svg)](#testing)
 
 **LoreMemory** is a high-contrast desktop **SQLite Database Management System (DBMS)** paired with an integrated **Mnemosyne-style AI Memory Engine**.
 
@@ -14,12 +14,20 @@ Built entirely on Python's standard library and Tkinter, it provides a fast, zer
 ## Key Features
 
 ### 🗄️ Desktop SQLite DBMS
-* **Schema Navigation:** Collapsible tree view showing tables, columns, data types, primary keys, and foreign key relationships.
-* **Data Grid:** Virtual-paginated table viewer with in-place cell editing, row additions, deletions, sorting, and pagination.
+* **Registry-Editor Schema Navigation:** Hierarchical tree view styled like Windows Registry Editor (`🗄️ Database` → `📁 Tables` → `📄 table_name [count]` → nested `🔑` PK, `🔗` FK, `▫` columns) with double/single-click tab activation and idle action nodes.
+* **Full-Grid Table Viewer:** Complete 2D spreadsheet-like grid with full-height 1px vertical column boundary dividers (`TreeGrid`) and 1px horizontal row borders:
+  * Subtle 50–70% transparency lines flipped cleanly between Light (`#cbd5e1`) and Dark (`#334155`) modes.
+  * Distinct alternating row contrast (`#f1f5f9` / `#1e293b`).
+  * Dynamic column width auto-sizing based on header text and sample data content (50px to 380px).
+  * In-place cell editing, pagination, multi-column sorting, and debounced text filtering.
+* **High-Performance SQLite Engine:**
+  * Configured with WAL journal mode (`PRAGMA journal_mode = WAL`), `synchronous = NORMAL`, 64MB cache (`cache_size = -64000`), in-memory temp store, and 256MB memory-mapped I/O (`mmap_size`).
+  * In-memory schema caching (`get_schema_only()`) preventing expensive table scans and delivering instant (< 0.1ms) SQL autocomplete.
+  * Fast batch row operations (`delete(*children)`) eliminating Tcl interpreter round-trips.
 * **SQL Query Console:** Responsive SQL editor featuring:
   * Debounced syntax highlighting.
-  * Real-time table and column autocomplete popup.
-  * Multi-result grid presentation.
+  * Instant table and column autocomplete popup.
+  * Multi-result grid presentation with dynamic column sizing.
   * One-click query execution plan (`EXPLAIN QUERY PLAN`).
   * Instant export to CSV and JSON.
 * **Visual Tools:** Interactive schema diagram visualizer and an integrated SQL scratchpad notebook.
@@ -43,8 +51,9 @@ Built entirely on Python's standard library and Tkinter, it provides a fast, zer
 ### 🎨 High-Contrast Minimalist Interface
 * Designed for clarity with distinct outlines and high-contrast borders.
 * Full-window compatible with responsive centered cards and split panes.
+* Balanced symmetrical bottom toolbar with clean user badge and matching action buttons (`Admin`, `Logout`, `Theme`).
 * Clean hover and active states (contrast locked to prevent text washouts).
-* Fast and jitter-free—no animation lag or heavy framework overhead.
+* Fast, smooth, and jitter-free—debounced idle event scheduling and geometry diffing prevent layout thrashing.
 
 ---
 
@@ -120,13 +129,13 @@ This automatically generates a fresh 16-byte cryptographic salt and computes the
 
 ## Testing
 
-Run the full automated test suite (28 unit and headless GUI smoke tests):
+Run the full automated test suite (35 unit and headless GUI smoke tests):
 
 ```bash
 pytest tests/
 ```
 
-All tests run headlessly in under 2 seconds.
+All tests run headlessly in under 3 seconds.
 
 ---
 
@@ -134,10 +143,10 @@ All tests run headlessly in under 2 seconds.
 
 ```
 LoreMemory/
-├── auth.py                  # PBKDF2 authentication & password hashing
+├── auth.py                  # PBKDF2 authentication, RBAC & password hashing
 ├── cli.py                   # Command-line interface for memory engine
 ├── config.py                # Global limits, memory weights, and database paths
-├── db.py                    # Database connection manager & metadata inspector
+├── db.py                    # Database connection manager, WAL pragmas & cached schema inspector
 ├── history.py               # Audit logger tracking query executions per user
 ├── main.py                  # Application entry point (GUI & CLI router)
 ├── make_sample_db.py        # Sample school.db & memory graph seeder
@@ -146,20 +155,28 @@ LoreMemory/
 ├── gui/
 │   ├── admin_page.py        # User & role administration panel with audit log
 │   ├── login.py             # Stylized minimal login & registration card
-│   ├── theme.py             # High-contrast color palette & ttk styles
+│   ├── theme.py             # High-contrast color palette, Treeview.Row border & ttk styles
 │   ├── main_window.py       # Full-window layout, toolbar, status bar & sidebar
-│   ├── sidebar.py           # Table tree navigator with collapse handle
-│   ├── tabs.py              # Notebook tab manager (data, history, console, memory)
+│   ├── sidebar.py           # Regedit-style table tree navigator with symmetrical bottom toolbar
+│   ├── tabs.py              # Custom tab strip with real clickable close (×) buttons & instant switching
 │   ├── console.py           # SQL editor with debounced syntax highlighting
-│   ├── table_page.py        # Virtual paginated data grid with inline editing
-│   ├── history_page.py      # User query execution audit log viewer
-│   ├── memory_page.py       # Visual memory explorer & consolidation inspector
-│   ├── schema_page.py       # Interactive canvas schema diagram
-│   ├── notepad_page.py      # SQL scratchpad notepad
-│   └── dialogs.py           # Table creation & column editor dialogs
+│   ├── table_page.py        # Full-grid paginated data table with dynamic column sizing & CRUD
+│   ├── result_page.py       # Query result grid with full-height dividers & auto-sizing
+│   ├── notepad_page.py      # Read-only notepad: HistoryPage and MemoryPage (Ctrl+F)
+│   ├── dialogs.py           # Add/Edit row dialogs, New Table dialog, dangerous warnings
+│   ├── autocomplete.py      # Context-sensitive SQL autocomplete popup (<0.1ms cached)
+│   └── widgets.py           # TreeGrid divider manager & thread-safe background runner
 ├── data/                    # SQLite databases (users.db, history.db, memory.db)
 ├── sample/                  # Demo database (school.db)
-└── tests/                   # Automated pytest suite
+└── tests/                   # Automated pytest suite (35 tests)
+    ├── conftest.py          # Cross-platform Tcl/Tk library path bootstrap
+    ├── test_auth.py         # Authentication, salt & RBAC tests
+    ├── test_cli.py          # Terminal CLI subcommand tests
+    ├── test_db.py           # Database CRUD, transactions, rollback & authorizer tests
+    ├── test_gui_smoke.py    # Headless GUI smoke & tab switching tests
+    ├── test_history.py      # History logging, multi-user view & table rename tests
+    ├── test_mcp_server.py   # MCP stdio JSON-RPC server tests
+    └── test_memory.py       # Working/episodic memory, recall abstention & TTL tests
 ```
 
 ---
