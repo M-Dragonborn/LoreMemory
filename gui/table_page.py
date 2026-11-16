@@ -32,9 +32,12 @@ class TablePage(tk.Frame):
         )
         top_bar.pack(fill="x", side="top", padx=3, pady=3)
 
-        tk.Label(top_bar, text="Filter:", bg=p["panel"], fg=p["text"], font=("Segoe UI", 9, "bold")).pack(side="left", padx=(0, 4))
-        self.filter_entry = ttk.Entry(top_bar, width=22)
-        self.filter_entry.pack(side="left", padx=(0, 12))
+        tk.Label(top_bar, text="▦", font=("Segoe UI", 10), fg=p["accent"], bg=p["panel"]).pack(side="left", padx=(0, 4))
+        tk.Label(top_bar, text=self.table_name, font=("Segoe UI", 9, "bold"), fg=p["text"], bg=p["panel"]).pack(side="left", padx=(0, 10))
+
+        tk.Label(top_bar, text="Filter:", bg=p["panel"], fg=p["muted"], font=("Segoe UI", 9, "bold")).pack(side="left", padx=(0, 4))
+        self.filter_entry = ttk.Entry(top_bar, width=20)
+        self.filter_entry.pack(side="left", padx=(0, 10))
         self.filter_entry.bind("<KeyRelease>", self.on_filter_changed)
 
         ttk.Button(top_bar, text="Add Row", command=self.on_add_row).pack(side="left", padx=2)

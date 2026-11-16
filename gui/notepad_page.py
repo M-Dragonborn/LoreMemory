@@ -9,11 +9,8 @@ class NotepadPage(tk.Frame):
         super().__init__(parent, bg=p["surface"])
         self.app = app
         self.title_str = title
-        self.offset = 0
-        self.has_more = True
-        self.loading = False
-        self.find_matches = []
-        self.find_index = -1
+        self.offset, self.has_more, self.loading = 0, True, False
+        self.find_matches, self.find_index = [], -1
 
         self.setup_ui()
 
@@ -141,23 +138,21 @@ class NotepadPage(tk.Frame):
 class HistoryPage(NotepadPage):
     def __init__(self, parent, app, table_name=None, return_tab=None):
         super().__init__(parent, app, title=f"History: {table_name or 'Database'}")
-        self.table_name = table_name
-        self.return_tab = return_tab
+        self.table_name, self.return_tab = table_name, return_tab
+        p = get_palette()
 
-        ttk.Button(self.top_bar, text="‹ Back", width=6, command=self.go_back).pack(side="left", padx=(0, 8))
+        ttk.Button(self.top_bar, text="‹ Back", width=6, command=self.go_back).pack(side="left", padx=(0, 6))
+        tk.Label(self.top_bar, text="⏱", font=("Segoe UI", 10), fg=p["accent"], bg=p["panel"]).pack(side="left", padx=(0, 4))
+        tk.Label(self.top_bar, text="Query History", font=("Segoe UI", 9, "bold"), fg=p["text"], bg=p["panel"]).pack(side="left", padx=(0, 6))
 
-        target_str = self.table_name if self.table_name else "whole database"
-        self.scope_lbl = tk.Label(
-            self.top_bar, text=f"Showing: {target_str}",
-            bg=get_palette()["panel"], fg=get_palette()["text"], font=("Segoe UI", 9, "bold")
-        )
+        target_str = f"[{self.table_name}]" if self.table_name else "[Whole Database]"
+        self.scope_lbl = tk.Label(self.top_bar, text=target_str, bg=p["panel"], fg=p["muted"], font=("Segoe UI", 9))
         self.scope_lbl.pack(side="left", padx=(0, 10))
 
         if self.table_name:
             self.switch_link = tk.Label(
                 self.top_bar, text="Switch to whole database",
-                fg=get_palette()["accent"], bg=get_palette()["panel"],
-                cursor="hand2", font=("Segoe UI", 9, "bold", "underline")
+                fg=p["accent"], bg=p["panel"], cursor="hand2", font=("Segoe UI", 9, "bold", "underline")
             )
             self.switch_link.pack(side="left")
             self.switch_link.bind("<Button-1>", lambda e: self.switch_scope())
@@ -174,8 +169,7 @@ class HistoryPage(NotepadPage):
             self.app.tabs.select(self.return_tab)
 
     def reload(self):
-        self.offset = 0
-        self.has_more = True
+        self.offset, self.has_more = 0, True
         self.text.config(state="normal")
         self.text.delete("1.0", "end")
         self.text.config(state="disabled")
@@ -210,16 +204,14 @@ class HistoryPage(NotepadPage):
 class MemoryPage(NotepadPage):
     def __init__(self, parent, app):
         super().__init__(parent, app, title="Memory")
-        self.lbl = tk.Label(
-            self.top_bar, text="AI Memory (Mnemosyne-style)",
-            bg=get_palette()["panel"], fg=get_palette()["text"], font=("Segoe UI", 9, "bold")
-        )
-        self.lbl.pack(side="left")
+        p = get_palette()
+        tk.Label(self.top_bar, text="🧠", font=("Segoe UI", 10), fg=p["accent"], bg=p["panel"]).pack(side="left", padx=(0, 4))
+        tk.Label(self.top_bar, text="AI Memory", font=("Segoe UI", 9, "bold"), fg=p["text"], bg=p["panel"]).pack(side="left", padx=(0, 6))
+        tk.Label(self.top_bar, text="[Mnemosyne Cognitive Graph]", font=("Segoe UI", 9), fg=p["muted"], bg=p["panel"]).pack(side="left")
         self.reload()
 
     def reload(self):
-        self.offset = 0
-        self.has_more = True
+        self.offset, self.has_more = 0, True
         self.text.config(state="normal")
         self.text.delete("1.0", "end")
         self.text.config(state="disabled")

@@ -19,9 +19,12 @@ class ResultPage(tk.Frame):
         )
         self.top_bar.pack(fill="x", side="top", padx=3, pady=3)
 
+        tk.Label(self.top_bar, text="📊", font=("Segoe UI", 10), fg=p["accent"], bg=p["panel"]).pack(side="left", padx=(0, 4))
+        tk.Label(self.top_bar, text="Query Results", font=("Segoe UI", 9, "bold"), fg=p["text"], bg=p["panel"]).pack(side="left", padx=(0, 8))
+
         self.info_label = tk.Label(
-            self.top_bar, text="", font=("Segoe UI", 9, "bold"),
-            bg=p["panel"], fg=p["text"]
+            self.top_bar, text="", font=("Segoe UI", 9),
+            bg=p["panel"], fg=p["muted"]
         )
         self.info_label.pack(side="left")
 
