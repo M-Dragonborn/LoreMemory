@@ -37,3 +37,9 @@ def test_auth_full_flow():
     assert "secret123" not in row[0]
     assert len(row[1]) == 32  # 16 bytes hex
 
+    # Change password
+    assert auth.change_password(con, "alice", "new_secret456") is True
+    assert auth.login(con, "alice", "secret123") is None
+    assert auth.login(con, "alice", "new_secret456") == 1
+    assert auth.change_password(con, "nonexistent", "pass") is False
+

@@ -87,3 +87,23 @@ def register_user(username, password, path=None):
         return register(con, username, password)
     finally:
         con.close()
+
+def change_password(con, username, new_password):
+    if not username or not new_password:
+        return False
+    username = username.strip()
+    salt_hex = secrets.token_hex(16)
+    p_hash = hash_password(new_password, salt_hex)
+    cur = con.execute(
+        "UPDATE users SET password_hash = ?, salt = ? WHERE username = ?",
+        (p_hash, salt_hex, username)
+    )
+    con.commit()
+    return cur.rowcount > 0
+
+def change_password_user(username, new_password, path=None):
+    con = get_connection(path)
+    try:
+        return change_password(con, username, new_password)
+    finally:
+        con.close()
