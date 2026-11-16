@@ -75,6 +75,21 @@ def test_gui_full_smoke():
         assert "table:students" not in app.tabs.tabs
         assert "memory" in app.tabs.tabs  # memory tab remains open
 
+        # Test autocomplete Tab completion
+        app.console.set_editor_text("SELECT * FROM stu")
+        app.console.editor.mark_set("insert", "end-1c")
+        app.autocomplete.trigger_autocomplete(force=True)
+        assert len(app.autocomplete.matches) > 0
+        app.autocomplete.on_tab(None)
+        assert app.console.editor.get("1.0", "end-1c") == "SELECT * FROM students"
+
+        # Test keyword completion
+        app.console.set_editor_text("sel")
+        app.console.editor.mark_set("insert", "end-1c")
+        app.autocomplete.trigger_autocomplete(force=True)
+        app.autocomplete.on_tab(None)
+        assert app.console.editor.get("1.0", "end-1c") == "SELECT"
+
     app.db.close()
     app.history.close()
     app.memory.close()

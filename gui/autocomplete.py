@@ -16,8 +16,6 @@ class AutocompletePopup:
         self.popup = None
         self.listbox = None
         self.matches = []
-        self.current_prefix = ""
-        self.replace_start = None
         self.after_id = None
 
         self._init_popup()
@@ -62,7 +60,7 @@ class AutocompletePopup:
 
     def on_return(self, event):
         if self.is_visible():
-            self.hide()
+            return self.on_tab(event)
 
     def on_arrow_up(self, event):
         if self.is_visible():
@@ -85,21 +83,32 @@ class AutocompletePopup:
     def on_tab(self, event):
         if self.is_visible():
             sel = self.listbox.curselection()
-            if sel:
-                word, kind = self.matches[sel[0]]
+            idx = sel[0] if sel else 0
+            if self.matches and 0 <= idx < len(self.matches):
+                word, kind = self.matches[idx]
                 self.insert_completion(word, kind)
-                self.hide()
-                return "break"
+            self.hide()
+            return "break"
 
     def insert_completion(self, word, kind):
         if kind == "keyword":
             word = word.upper()
+        import re
         cur_pos = self.editor.index("insert")
-        if self.replace_start:
-            self.editor.delete(self.replace_start, cur_pos)
-            self.editor.insert(self.replace_start, word)
+        line_start = f"{cur_pos.split('.')[0]}.0"
+        line_text = self.editor.get(line_start, cur_pos)
+
+        m = re.search(r"([\w\.]+)$", line_text)
+        token = m.group(1) if m else ""
+        if "." in token:
+            _, col_part = token.split(".", 1)
+            replace_len = len(col_part)
         else:
-            self.editor.insert("insert", word)
+            replace_len = len(token)
+
+        start_pos = self.editor.index(f"{cur_pos} - {replace_len} chars") if replace_len > 0 else cur_pos
+        self.editor.delete(start_pos, cur_pos)
+        self.editor.insert(start_pos, word)
 
     def on_ctrl_space(self, event):
         self.trigger_autocomplete(force=True)
@@ -140,19 +149,14 @@ class AutocompletePopup:
         suggestions = []
         if "." in token:
             tbl_prefix, col_prefix = token.split(".", 1)
-            tbl_key = tbl_prefix.lower()
-            cols = columns_by_table.get(tbl_key, [])
+            cols = columns_by_table.get(tbl_prefix.lower(), [])
             for c in cols:
                 if c.lower().startswith(col_prefix.lower()):
                     suggestions.append((c, "column"))
-            self.current_prefix = col_prefix
-            self.replace_start = f"{cur_pos}-{len(col_prefix)}c"
         elif last_kw in ("FROM", "JOIN", "INTO", "UPDATE", "TABLE"):
             for t in tables:
                 if t.lower().startswith(token.lower()):
                     suggestions.append((t, "table"))
-            self.current_prefix = token
-            self.replace_start = f"{cur_pos}-{len(token)}c"
         else:
             for kw in SQL_KEYWORDS:
                 if kw.lower().startswith(token.lower()):
@@ -163,8 +167,6 @@ class AutocompletePopup:
             for c in set(all_columns):
                 if c.lower().startswith(token.lower()):
                     suggestions.append((c, "column"))
-            self.current_prefix = token
-            self.replace_start = f"{cur_pos}-{len(token)}c"
 
         if not suggestions:
             self.hide()
@@ -189,7 +191,5 @@ class AutocompletePopup:
             x = self.editor.winfo_rootx() + bbox[0]
             y = self.editor.winfo_rooty() + bbox[1] + bbox[3] + 2
             self.popup.geometry(f"220x150+{x}+{y}")
-            self.popup.deiconify()
-            self.popup.lift()
-        else:
-            self.hide()
+        self.popup.deiconify()
+        self.popup.lift()
