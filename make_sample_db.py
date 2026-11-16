@@ -84,10 +84,11 @@ def build_sample():
     # Seed default users if not present
     u_con = sqlite3.connect(USERS_DB)
     auth.init_users(u_con)
-    auth.register(u_con, "alice", "secret123")
-    auth.register(u_con, "bob", "secret123")
+    auth.register(u_con, "musfiq", "musfiq121")
+    auth.register(u_con, "rayed", "rayed097")
+    auth.register(u_con, "anower", "anower122")
     u_con.close()
-    print(f"Seeded users 'alice' and 'bob' in {USERS_DB}")
+    print(f"Seeded users 'musfiq', 'rayed', and 'anower' in {USERS_DB}")
 
     # Seed memory.db
     mem = Memory(MEMORY_DB)

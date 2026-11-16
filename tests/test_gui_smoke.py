@@ -42,7 +42,7 @@ def test_gui_full_smoke():
     root.withdraw()  # do not show window during test
     apply(root, "light")
 
-    app = MainWindow(root, user_id=1, username="alice")
+    app = MainWindow(root, user_id=1, username="musfiq")
     sample_db = os.path.join(os.path.dirname(__file__), "..", "sample", "school.db")
     if os.path.exists(sample_db):
         assert app.db.open(sample_db) is True
