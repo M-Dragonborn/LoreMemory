@@ -3,7 +3,7 @@
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue.svg)](https://www.python.org/)
 [![Database](https://img.shields.io/badge/sqlite-3-green.svg)](https://www.sqlite.org/)
 [![Dependencies](https://img.shields.io/badge/dependencies-zero%20external-orange.svg)](#dependencies)
-[![Tests](https://img.shields.io/badge/tests-28%20passed-brightgreen.svg)](#testing)
+[![Tests](https://img.shields.io/badge/tests-32%20passed-brightgreen.svg)](#testing)
 
 **LoreMemory** is a high-contrast desktop **SQLite Database Management System (DBMS)** paired with an integrated **Mnemosyne-style AI Memory Engine**.
 
@@ -24,7 +24,7 @@ Built entirely on Python's standard library and Tkinter, it provides a fast, zer
   * Instant export to CSV and JSON.
 * **Visual Tools:** Interactive schema diagram visualizer and an integrated SQL scratchpad notebook.
 
-### 🧠 Mnemosyne AI Memory Engine
+### 🧠 Mnemosyne AI Memory Engine & MCP
 * **3-Tier Memory Architecture:**
   * **Working Memory:** Fast transient scratchpad for active context sessions.
   * **Episodic Memory:** Consolidated timeline events and summaries with session clustering.
@@ -32,6 +32,7 @@ Built entirely on Python's standard library and Tkinter, it provides a fast, zer
 * **Hybrid Retrieval Scoring:**
   $$Score = w_{\text{vec}} \cdot Sim_{\text{vec}} + w_{\text{kw}} \cdot Sim_{\text{BM25}} + w_{\text{imp}} \cdot Imp + w_{\text{rec}} \cdot 2^{-\Delta t / t_{1/2}}$$
 * **Automatic Consolidation:** Background scheduling clusters stale working memories into condensed episodic memories.
+* **Model Context Protocol (MCP) Server:** Standalone stdio JSON-RPC server (`mcp_server.py`) exposing `recall`, `remember`, `recent`, `consolidate`, and `query_sql` to external LLM agents (e.g. Nous Hermes, Claude, Cursor). See [Hermes MCP Guide](docs/HERMES_MCP_GUIDE.md).
 
 ### 🔒 Authentication & Audit History
 * **Cryptographic Security:** Passwords hashed with **PBKDF2-HMAC-SHA256** using 100,000 iterations and per-user 16-byte random salts.
@@ -137,9 +138,10 @@ LoreMemory/
 ├── config.py                # Global limits, memory weights, and database paths
 ├── db.py                    # Database connection manager & metadata inspector
 ├── history.py               # Audit logger tracking query executions per user
-├── memory.py                # Mnemosyne AI memory engine (working, episodic, semantic)
 ├── main.py                  # Application entry point (GUI & CLI router)
 ├── make_sample_db.py        # Sample school.db & memory graph seeder
+├── mcp_server.py            # Model Context Protocol stdio server for LLMs
+├── memory.py                # Mnemosyne AI memory engine (working, episodic, semantic)
 ├── gui/
 │   ├── login.py             # Stylized minimal login & registration card
 │   ├── theme.py             # High-contrast color palette & ttk styles
