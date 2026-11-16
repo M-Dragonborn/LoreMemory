@@ -70,10 +70,7 @@ class TablePage(tk.Frame):
         ).pack(side="right", padx=2)
 
         # Center Treeview with clean 1px border
-        self.grid_frame = tk.Frame(
-            self, bg=p["surface"],
-            highlightbackground=p.get("grid_line", p["border"]), highlightthickness=1
-        )
+        self.grid_frame = tk.Frame(self, bg=p["surface"])
         self.grid_frame.pack(fill="both", expand=True, padx=3, pady=1)
 
         self.tree = ttk.Treeview(self.grid_frame, selectmode="browse", show="headings")
@@ -235,6 +232,6 @@ class TablePage(tk.Frame):
             if isinstance(child, tk.Label): child.config(bg=p["panel"], fg=p["text"] if child.cget("font") and "bold" in str(child.cget("font")) else p["muted"])
         self.bot_bar.config(bg=p["panel"], highlightbackground=p["border"])
         self.page_label.config(bg=p["panel"], fg=p["muted"])
-        self.grid_frame.config(bg=p["surface"], highlightbackground=p.get("grid_line", p["border"]))
+        self.grid_frame.config(bg=p["surface"])
         self.tree_grid.apply_theme(p)
         self._apply_tag_styles(p)
