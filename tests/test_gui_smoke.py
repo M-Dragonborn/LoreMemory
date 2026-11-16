@@ -43,6 +43,8 @@ def test_gui_full_smoke():
     apply(root, "light")
 
     app = MainWindow(root, user_id=1, username="musfiq")
+    assert app.console.hdr_title.cget("text") == "SQL Console"
+    assert "Ctrl+Enter" in app.console.hdr_hint.cget("text")
     sample_db = os.path.join(os.path.dirname(__file__), "..", "sample", "school.db")
     if os.path.exists(sample_db):
         assert app.db.open(sample_db) is True

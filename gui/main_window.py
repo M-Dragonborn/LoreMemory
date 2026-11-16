@@ -110,8 +110,8 @@ class MainWindow:
         self.expand_bar.config(bg=p["panel"], highlightbackground=p["border"])
         self.expand_btn.config(bg=p["surface"], fg=p["text"])
         for child in self.status_bar.winfo_children():
-            if isinstance(child, tk.Label):
-                child.config(bg=p["panel"], fg=p["text"])
+            if isinstance(child, tk.Label): child.config(bg=p["panel"], fg=p["text"])
+        self.console.apply_theme(p)
 
     def on_open_database(self):
         self.root.after(20, self._do_open_database)
