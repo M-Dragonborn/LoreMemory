@@ -75,21 +75,14 @@ class MainWindow:
         self.autocomplete = AutocompletePopup(self.console.editor, lambda: self.db.get_table_info() if self.db.con else [])
 
         # Bottom Status Bar with soft 1px border
-        self.status_bar = tk.Frame(
-            self.root, bg=p["panel"], padx=10, pady=5,
-            highlightbackground=p["border"], highlightthickness=1
-        )
+        self.status_bar = tk.Frame(self.root, bg=p["panel"], padx=10, pady=5, highlightbackground=p["border"], highlightthickness=1)
         self.status_bar.pack(fill="x", side="bottom")
-
         self.status_user = tk.Label(self.status_bar, text=f"User: {self.username}", bg=p["panel"], fg=p["text"], font=("Segoe UI", 9, "bold"))
         self.status_user.pack(side="left", padx=(0, 14))
-
         self.status_file = tk.Label(self.status_bar, text="No database open", bg=p["panel"], fg=p["muted"], font=("Segoe UI", 9))
         self.status_file.pack(side="left", padx=(0, 14))
-
         self.status_rows = tk.Label(self.status_bar, text="", bg=p["panel"], fg=p["muted"], font=("Segoe UI", 9))
         self.status_rows.pack(side="left", padx=(0, 14))
-
         self.status_time = tk.Label(self.status_bar, text="", bg=p["panel"], fg=p["muted"], font=("Segoe UI", 9))
         self.status_time.pack(side="right")
 
@@ -121,80 +114,87 @@ class MainWindow:
                 child.config(bg=p["panel"], fg=p["text"])
 
     def on_open_database(self):
-        path = filedialog.askopenfilename(filetypes=[("SQLite Database", "*.db *.sqlite"), ("All Files", "*.*")])
-        if path and self.check_pending_transactions("Open Database"):
-            if self.db.open(path):
-                self.sidebar.update_db_name(path)
-                self.status_file.config(text=os.path.basename(path))
-                self.refresh_tables(); self.update_pending()
+        self.root.after(20, self._do_open_database)
+
+    def _do_open_database(self):
+        try:
+            d = os.path.dirname(self.db.path) if self.db.path else os.getcwd()
+            p = filedialog.askopenfilename(
+                parent=self.root, title="Open SQLite Database", initialdir=d,
+                filetypes=[("SQLite Database", "*.db"), ("SQLite Database", "*.sqlite"), ("All Files", "*.*")]
+            )
+            if p and self.check_pending_transactions("Open Database"):
+                if self.db.open(p):
+                    self.close_table_tabs(); self.sidebar.update_db_name(p)
+                    self.status_file.config(text=os.path.basename(p))
+                    self.refresh_tables(); self.update_pending()
+                else: messagebox.showerror("Error", f"Failed to open database:\n{p}", parent=self.root)
+        except Exception as e:
+            messagebox.showerror("Database Error", f"Could not open database:\n{e}", parent=self.root)
 
     def on_new_database(self):
-        path = filedialog.asksaveasfilename(defaultextension=".db", filetypes=[("SQLite Database", "*.db")])
-        if path and self.check_pending_transactions("New Database"):
-            if self.db.open(path, create=True):
-                self.sidebar.update_db_name(path)
-                self.status_file.config(text=os.path.basename(path))
-                self.refresh_tables(); self.update_pending()
+        self.root.after(20, self._do_new_database)
+
+    def _do_new_database(self):
+        try:
+            d = os.path.dirname(self.db.path) if self.db.path else os.getcwd()
+            p = filedialog.asksaveasfilename(
+                parent=self.root, title="New SQLite Database", initialdir=d,
+                defaultextension=".db", filetypes=[("SQLite Database", "*.db"), ("All Files", "*.*")]
+            )
+            if p and self.check_pending_transactions("New Database"):
+                if self.db.open(p, create=True):
+                    self.close_table_tabs(); self.sidebar.update_db_name(p)
+                    self.status_file.config(text=os.path.basename(p))
+                    self.refresh_tables(); self.update_pending()
+                else: messagebox.showerror("Error", f"Failed to create database:\n{p}", parent=self.root)
+        except Exception as e:
+            messagebox.showerror("Database Error", f"Could not create database:\n{e}", parent=self.root)
 
     def on_close_database(self):
         if self.check_pending_transactions("Close Database"):
-            self.db.close()
-            self.sidebar.update_db_name(None)
-            self.status_file.config(text="No database open")
+            self.close_table_tabs(); self.db.close()
+            self.sidebar.update_db_name(None); self.status_file.config(text="No database open")
             self.refresh_tables(); self.update_pending()
+
+    def close_table_tabs(self):
+        for k in list(self.tabs.tabs.keys()):
+            if k.startswith("table:") or k.startswith("history:"): self.tabs.close_tab(k)
 
     def refresh_tables(self):
         if not self.db.con:
-            self.sidebar.refresh_tables([])
-            return
-        info = self.db.get_table_info()
-        self.sidebar.refresh_tables(info)
+            self.sidebar.refresh_tables([]); return
+        try: self.sidebar.refresh_tables(self.db.get_table_info())
+        except Exception: self.sidebar.refresh_tables([])
 
     def update_pending(self):
         self.console.update_pending_status(self.db.has_pending)
 
     def update_status(self, table_rows=None, elapsed_ms=None):
-        if table_rows is not None:
-            self.status_rows.config(text=f"{table_rows} rows")
-        if elapsed_ms is not None:
-            self.status_time.config(text=f"{elapsed_ms:.1f} ms")
+        if table_rows is not None: self.status_rows.config(text=f"{table_rows} rows")
+        if elapsed_ms is not None: self.status_time.config(text=f"{elapsed_ms:.1f} ms")
 
     def open_tab(self, kind, name):
         if kind == "table":
-            key = f"table:{name}"
-            if key not in self.tabs.tabs:
-                page = TablePage(self.tabs.content_frame, self, name)
-                self.tabs.add_tab(key, "table", name, page)
-            else:
-                self.tabs.select(key)
+            key, title, fn = f"table:{name}", name, lambda: TablePage(self.tabs.content_frame, self, name)
         elif kind == "result":
-            key = "result"
-            if key not in self.tabs.tabs:
-                page = ResultPage(self.tabs.content_frame, self)
-                self.tabs.add_tab(key, "result", "Result", page)
-            else:
-                self.tabs.select(key)
+            key, title, fn = "result", "Result", lambda: ResultPage(self.tabs.content_frame, self)
         elif kind == "history":
             key = f"history:{name or 'db'}"
             title = f"History: {name}" if name else "History: Database"
-            if key not in self.tabs.tabs:
-                ret_key = self.tabs.active_key if self.tabs.active_key != key else None
-                page = HistoryPage(self.tabs.content_frame, self, table_name=name, return_tab=ret_key)
-                self.tabs.add_tab(key, "history", title, page)
-            else:
-                self.tabs.select(key)
+            ret = self.tabs.active_key if self.tabs.active_key != key else None
+            fn = lambda: HistoryPage(self.tabs.content_frame, self, table_name=name, return_tab=ret)
         elif kind == "memory":
-            key = "memory"
-            if key not in self.tabs.tabs:
-                page = MemoryPage(self.tabs.content_frame, self)
-                self.tabs.add_tab(key, "memory", "Memory", page)
-            else:
-                self.tabs.select(key)
+            key, title, fn = "memory", "Memory", lambda: MemoryPage(self.tabs.content_frame, self)
+        else: return
+        if key not in self.tabs.tabs:
+            self.tabs.add_tab(key, kind, title, fn())
+        else:
+            self.tabs.select(key)
 
     def show_select_result(self, result):
         self.open_tab("result", None)
-        res_page = self.tabs.tabs["result"]["page"]
-        res_page.display(result)
+        self.tabs.tabs["result"]["page"].display(result)
 
     def on_tab_switched(self, key, kind, page):
         if kind == "table":
@@ -208,6 +208,8 @@ class MainWindow:
         if kind == "table":
             tname = key.split(":", 1)[1]
             h_key = f"history:{tname}"
+            if h_key in self.tabs.tabs:
+                self.tabs.close_tab(h_key)
             if h_key in self.tabs.tabs:
                 self.tabs.close_tab(h_key)
 

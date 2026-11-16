@@ -17,24 +17,24 @@ class Database:
         self.history = history
         self.user_id = user_id
         self.con = None
-        self.path = None
-        self.lock = threading.RLock()
+        self.path, self.lock = None, threading.RLock()
 
     def open(self, path, create=False):
         with self.lock:
             self.close()
             real_path = os.path.normcase(os.path.realpath(path))
-            if not create and not os.path.exists(real_path):
-                return False
+            if not create and not os.path.exists(real_path): return False
             parent = os.path.dirname(real_path)
-            if parent and not os.path.exists(parent):
-                os.makedirs(parent, exist_ok=True)
+            if parent and not os.path.exists(parent): os.makedirs(parent, exist_ok=True)
             self.path = real_path
-            self.con = sqlite3.connect(
-                self.path, isolation_level=None, check_same_thread=False, timeout=5.0
-            )
-            self.con.execute("PRAGMA foreign_keys = ON")
-            return True
+            try:
+                self.con = sqlite3.connect(
+                    self.path, isolation_level=None, check_same_thread=False, timeout=5.0
+                )
+                self.con.execute("PRAGMA foreign_keys = ON")
+                return True
+            except Exception:
+                self.close(); return False
 
     def close(self):
         with self.lock:

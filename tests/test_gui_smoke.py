@@ -67,6 +67,12 @@ def test_gui_full_smoke():
         app.tabs.close_tab("history:students")
         assert "history:students" not in app.tabs.tabs
 
+        # Test close_table_tabs
+        assert "table:students" in app.tabs.tabs
+        app.close_table_tabs()
+        assert "table:students" not in app.tabs.tabs
+        assert "memory" in app.tabs.tabs  # memory tab remains open
+
     app.db.close()
     app.history.close()
     app.memory.close()

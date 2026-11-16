@@ -1,5 +1,10 @@
 import sys
+if sys.platform == "win32":
+    sys.coinit_flags = 2  # COINIT_APARTMENTTHREADED for Windows COM dialogs
+
 import tkinter as tk
+from tkinter import messagebox
+import traceback
 import cli
 from gui.theme import apply
 from gui.login import LoginWindow
@@ -24,6 +29,15 @@ def start_gui():
     hide_windows_console_if_double_clicked()
 
     root = tk.Tk()
+    def on_tk_exception(exc_type, exc_val, exc_tb):
+        err = "".join(traceback.format_exception(exc_type, exc_val, exc_tb))
+        print("Exception:", err, file=sys.stderr)
+        try:
+            messagebox.showerror("Unexpected Error", f"An error occurred:\n\n{err}", parent=root)
+        except Exception:
+            pass
+    root.report_callback_exception = on_tk_exception
+
     apply(root, "light")
     try:
         root.state("zoomed")
