@@ -3,6 +3,7 @@ from tkinter import ttk, messagebox, simpledialog
 import auth
 from config import USERS_DB
 from gui.theme import get_palette
+from gui.widgets import TreeGrid
 
 class AdminPage(tk.Frame):
     def __init__(self, parent, app):
@@ -59,6 +60,8 @@ class AdminPage(tk.Frame):
         a_scroll = ttk.Scrollbar(self.audit_frame, orient="vertical", command=self.audit_tree.yview)
         self.audit_tree.configure(yscrollcommand=a_scroll.set)
         a_scroll.pack(side="right", fill="y"); self.audit_tree.pack(side="left", fill="both", expand=True)
+        self.users_grid = TreeGrid(self.users_tree, None, lambda: get_palette().get("grid_line", "#cbd5e1"))
+        self.audit_grid = TreeGrid(self.audit_tree, None, lambda: get_palette().get("grid_line", "#cbd5e1"))
         self._apply_tag_styles(p)
 
     def _apply_tag_styles(self, p):
@@ -90,6 +93,7 @@ class AdminPage(tk.Frame):
                 st = "Active" if u.get("is_active") else "Deactivated"
                 tag = "odd" if idx % 2 else "even"
                 self.users_tree.insert("", "end", values=(str(u["user_id"]), str(u["username"]), str(u.get("role", "user")), st, str(u.get("last_login") or "Never"), str(u.get("created_at") or "")), tags=(tag,))
+            self.users_grid.update()
         except Exception as e:
             try: messagebox.showerror("Database Error", f"Failed to load users:\n{e}", parent=self.app.root)
             except Exception: pass
@@ -107,6 +111,7 @@ class AdminPage(tk.Frame):
             for idx, l in enumerate(logs):
                 tag = "odd" if idx % 2 else "even"
                 self.audit_tree.insert("", "end", values=(str(l["audit_id"]), str(l["target_user"]), str(l["changed_by_user"]), f"{l['old_role']} -> {l['new_role']}", str(l["changed_at"] or ""), str(l["reason"] or "")), tags=(tag,))
+            self.audit_grid.update()
         except Exception as e:
             try: messagebox.showerror("Database Error", f"Failed to load audit log:\n{e}", parent=self.app.root)
             except Exception: pass
@@ -216,5 +221,6 @@ class AdminPage(tk.Frame):
         self.audit_frame.config(bg=p["surface"])
         self.u_toolbar.config(bg=p["panel"], highlightbackground=p["border"])
         self.a_toolbar.config(bg=p["panel"], highlightbackground=p["border"])
+        self.users_grid.apply_theme(p); self.audit_grid.apply_theme(p)
         self._apply_tag_styles(p)
         self.switch_view(self.active_subview)

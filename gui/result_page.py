@@ -2,6 +2,7 @@ import tkinter as tk
 import tkinter.font as tkfont
 from tkinter import ttk
 from gui.theme import get_palette
+from gui.widgets import TreeGrid
 
 class ResultPage(tk.Frame):
     def __init__(self, parent, app):
@@ -40,6 +41,7 @@ class ResultPage(tk.Frame):
 
         self.grid_frame.rowconfigure(0, weight=1)
         self.grid_frame.columnconfigure(0, weight=1)
+        self.tree_grid = TreeGrid(self.tree, h_scroll, lambda: get_palette().get("grid_line", "#cbd5e1"))
         self._apply_tag_styles(p)
 
     def _apply_tag_styles(self, p):
@@ -72,6 +74,7 @@ class ResultPage(tk.Frame):
             tag = "odd" if idx % 2 else "even"
             self.tree.insert("", "end", values=display_vals, tags=(tag,))
 
+        self.tree_grid.update()
         self.app.update_status(table_rows=len(rows))
 
     def reload(self):
@@ -87,4 +90,5 @@ class ResultPage(tk.Frame):
             if isinstance(child, tk.Label): child.config(bg=p["panel"], fg=p["text"])
         self.info_label.config(bg=p["panel"], fg=p["muted"])
         self.grid_frame.config(bg=p["surface"], highlightbackground=p["border"])
+        self.tree_grid.apply_theme(p)
         self._apply_tag_styles(p)

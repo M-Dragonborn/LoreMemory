@@ -4,6 +4,7 @@ from tkinter import ttk, messagebox
 from config import PAGE_SIZE
 from gui.dialogs import RowDialog
 from gui.theme import get_palette
+from gui.widgets import TreeGrid
 
 class TablePage(tk.Frame):
     def __init__(self, parent, app, table_name):
@@ -85,6 +86,7 @@ class TablePage(tk.Frame):
 
         self.grid_frame.rowconfigure(0, weight=1)
         self.grid_frame.columnconfigure(0, weight=1)
+        self.tree_grid = TreeGrid(self.tree, h_scroll, lambda: get_palette().get("grid_line", "#cbd5e1"))
         self._apply_tag_styles(p)
 
     def _apply_tag_styles(self, p):
@@ -131,6 +133,7 @@ class TablePage(tk.Frame):
             tag = "odd" if idx % 2 else "even"
             self.tree.insert("", "end", values=display_vals, tags=(tag,))
 
+        self.tree_grid.update()
         total_pages = max(1, (total + PAGE_SIZE - 1) // PAGE_SIZE)
         self.page_label.config(text=f"Page {self.page} of {total_pages} ({total} rows)")
         self.prev_btn.state(["!disabled" if self.page > 1 else "disabled"])
@@ -233,4 +236,5 @@ class TablePage(tk.Frame):
         self.bot_bar.config(bg=p["panel"], highlightbackground=p["border"])
         self.page_label.config(bg=p["panel"], fg=p["muted"])
         self.grid_frame.config(bg=p["surface"], highlightbackground=p["border"])
+        self.tree_grid.apply_theme(p)
         self._apply_tag_styles(p)

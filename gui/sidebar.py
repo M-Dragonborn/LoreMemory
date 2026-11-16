@@ -73,7 +73,7 @@ class Sidebar(tk.Frame):
         self.tree_border.pack(fill="both", expand=True)
 
         self.tree_scroll = ttk.Scrollbar(self.tree_border, orient="vertical")
-        self.tree = ttk.Treeview(self.tree_border, show="tree", selectmode="browse", yscrollcommand=self.tree_scroll.set)
+        self.tree = ttk.Treeview(self.tree_border, show="tree", selectmode="browse", yscrollcommand=self.tree_scroll.set, style="Sidebar.Treeview")
         self.tree_scroll.config(command=self.tree.yview)
         self.tree_scroll.pack(side="right", fill="y")
         self.tree.pack(side="left", fill="both", expand=True)

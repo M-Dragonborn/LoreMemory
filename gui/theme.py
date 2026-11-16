@@ -17,8 +17,8 @@ LIGHT_PALETTE = {
     "success": "#16a34a",
     "select_bg": "#bae6fd",     # Vivid light blue selection
     "select_fg": "#0369a1",
-    "grid_alt": "#f8fafc",      # Subtle 80% light transparency tint for alternating rows
-    "grid_line": "#e2e8f0"      # Clean subtle 1px grid divider
+    "grid_alt": "#f1f5f9",      # Crisp subtle light tint for alternating rows (slate-100)
+    "grid_line": "#cbd5e1"      # Distinct 1px clean grid line (slate-300)
 }
 
 DARK_PALETTE = {
@@ -37,8 +37,8 @@ DARK_PALETTE = {
     "success": "#22c55e",
     "select_bg": "#0284c7",
     "select_fg": "#ffffff",
-    "grid_alt": "#1a2538",      # Subtle flipped dark contrast tint for alternating rows
-    "grid_line": "#26354a"      # Clean flipped subtle 1px grid divider
+    "grid_alt": "#1e293b",      # Subtle flipped dark contrast tint for alternating rows (slate-800)
+    "grid_line": "#334155"      # Clean flipped subtle 1px grid divider (slate-700)
 }
 
 CURRENT_THEME = "light"
@@ -149,6 +149,9 @@ def apply(root, mode="light"):
         background=[("selected", p["select_bg"])],
         foreground=[("selected", p["select_fg"])]
     )
+    style.layout("Treeview.Row", [("border", {"sticky": "nswe", "children": [("Treeitem.row", {"sticky": "nswe"})]})])
+    style.configure("Treeview.Row", borderwidth=1, relief="solid",
+                    bordercolor=p["grid_line"], darkcolor=p["grid_line"], lightcolor=p["grid_line"])
     style.configure(
         "Treeview.Heading",
         font=bold_font,
@@ -158,6 +161,13 @@ def apply(root, mode="light"):
         relief="solid",
         borderwidth=1
     )
+
+    # Clean sidebar treeview without row borders (Regedit style)
+    style.layout("Sidebar.Treeview", style.layout("Treeview"))
+    style.layout("Sidebar.Treeview.Row", [("Treeitem.row", {"sticky": "nswe"})])
+    style.configure("Sidebar.Treeview", background=p["surface"], foreground=p["text"],
+                    fieldbackground=p["surface"], rowheight=24, borderwidth=0)
+    style.map("Sidebar.Treeview", background=[("selected", p["select_bg"])], foreground=[("selected", p["select_fg"])])
 
     # Entry with distinct 1px border and focus border
     style.configure(
