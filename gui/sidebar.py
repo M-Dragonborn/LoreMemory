@@ -19,11 +19,11 @@ class Sidebar(tk.Frame):
         p = get_palette()
 
         # Database Header & Menu
-        top_frame = tk.Frame(self, bg=p["panel"], padx=8, pady=8, highlightbackground=p["border"], highlightthickness=1)
-        top_frame.pack(fill="x", side="top", padx=3, pady=3)
+        self.top_frame = tk.Frame(self, bg=p["panel"], padx=8, pady=8, highlightbackground=p["border"], highlightthickness=1)
+        self.top_frame.pack(fill="x", side="top", padx=3, pady=3)
 
         self.db_menu_btn = tk.Menubutton(
-            top_frame,
+            self.top_frame,
             text="No Database ▾",
             font=("Segoe UI", 10, "bold"),
             bg=p["surface"],
@@ -41,33 +41,34 @@ class Sidebar(tk.Frame):
         self.db_menu_btn.config(menu=self.db_menu)
         self.db_menu_btn.pack(side="left")
 
-        self.collapse_btn = ttk.Button(top_frame, text="‹", width=2, command=self.toggle_collapse)
+        self.collapse_btn = ttk.Button(self.top_frame, text="‹", width=2, command=self.toggle_collapse)
         self.collapse_btn.pack(side="right")
 
         # Tables Section Header
-        tables_hdr = tk.Frame(self, bg=p["bg"], padx=8, pady=6)
-        tables_hdr.pack(fill="x", side="top")
+        self.tables_hdr = tk.Frame(self, bg=p["bg"], padx=8, pady=6)
+        self.tables_hdr.pack(fill="x", side="top")
 
-        tk.Label(
-            tables_hdr, text="TABLES", bg=p["bg"], fg=p["muted"],
+        self.tables_lbl = tk.Label(
+            self.tables_hdr, text="TABLES", bg=p["bg"], fg=p["muted"],
             font=("Segoe UI", 9, "bold")
-        ).pack(side="left")
+        )
+        self.tables_lbl.pack(side="left")
 
         self.new_tbl_btn = tk.Label(
-            tables_hdr, text=" + ", font=("Segoe UI", 11, "bold"),
+            self.tables_hdr, text=" + ", font=("Segoe UI", 11, "bold"),
             fg=p["accent_text"], bg=p["accent"], cursor="hand2", relief="flat"
         )
         self.new_tbl_btn.pack(side="right")
         self.new_tbl_btn.bind("<Button-1>", lambda e: self.open_new_table_dialog())
 
         # Tables list area enclosed with soft 1px border
-        list_frame = tk.Frame(self, bg=p["bg"], padx=3, pady=1)
-        list_frame.pack(fill="both", expand=True)
+        self.list_frame = tk.Frame(self, bg=p["bg"], padx=3, pady=1)
+        self.list_frame.pack(fill="both", expand=True)
 
-        tree_border = tk.Frame(list_frame, bg=p["surface"], highlightbackground=p["border"], highlightthickness=1)
-        tree_border.pack(fill="both", expand=True)
+        self.tree_border = tk.Frame(self.list_frame, bg=p["surface"], highlightbackground=p["border"], highlightthickness=1)
+        self.tree_border.pack(fill="both", expand=True)
 
-        self.tree = ttk.Treeview(tree_border, columns=("name", "count"), show="", selectmode="browse")
+        self.tree = ttk.Treeview(self.tree_border, columns=("name", "count"), show="", selectmode="browse")
         self.tree.column("name", width=140, anchor="w")
         self.tree.column("count", width=60, anchor="e")
         self.tree.pack(side="left", fill="both", expand=True)
@@ -75,40 +76,57 @@ class Sidebar(tk.Frame):
         self.tree.bind("<<TreeviewSelect>>", self.on_table_selected)
 
         # Bottom Bar: User, Logout, Dark Mode toggle
-        bottom_frame = tk.Frame(
+        self.bottom_frame = tk.Frame(
             self, bg=p["panel"], padx=8, pady=6,
             highlightbackground=p["border"], highlightthickness=1
         )
-        bottom_frame.pack(fill="x", side="bottom", padx=3, pady=3)
+        self.bottom_frame.pack(fill="x", side="bottom", padx=3, pady=3)
 
         role = getattr(self.app, "role", "user")
         if role in ("admin", "super_admin"):
-            admin_frame = tk.Frame(self, bg=p["panel"], padx=4, pady=4, highlightbackground=p["border"], highlightthickness=1)
-            admin_frame.pack(fill="x", side="bottom", padx=3, pady=(0, 2))
+            self.admin_frame = tk.Frame(self, bg=p["panel"], padx=4, pady=4, highlightbackground=p["border"], highlightthickness=1)
+            self.admin_frame.pack(fill="x", side="bottom", padx=3, pady=(0, 2))
             self.admin_btn = tk.Button(
-                admin_frame, text="⚙ Admin Panel", font=("Segoe UI", 9, "bold"),
+                self.admin_frame, text="⚙ Admin Panel", font=("Segoe UI", 9, "bold"),
                 bg=p["surface"], fg=p["accent"], relief="flat", cursor="hand2", pady=2,
                 command=lambda: self.app.open_tab("admin", None)
             )
             self.admin_btn.pack(fill="x")
 
         u_txt = f"{self.app.username} ({role})" if role != "user" else self.app.username
-        self.user_lbl = tk.Label(bottom_frame, text=u_txt, bg=p["panel"], fg=p["text"], font=("Segoe UI", 9, "bold"))
+        self.user_lbl = tk.Label(self.bottom_frame, text=u_txt, bg=p["panel"], fg=p["text"], font=("Segoe UI", 9, "bold"))
         self.user_lbl.pack(side="left")
 
         self.logout_lbl = tk.Label(
-            bottom_frame, text="Log out", fg=p["accent"],
+            self.bottom_frame, text="Log out", fg=p["accent"],
             bg=p["panel"], cursor="hand2", font=("Segoe UI", 9, "bold", "underline")
         )
         self.logout_lbl.pack(side="left", padx=(10, 0))
         self.logout_lbl.bind("<Button-1>", lambda e: self.app.on_logout())
 
         self.theme_btn = tk.Label(
-            bottom_frame, text=" ☾ ", font=("Segoe UI", 10),
+            self.bottom_frame, text=" ☾ ", font=("Segoe UI", 10),
             fg=p["text"], bg=p["surface"], relief="solid", bd=1, cursor="hand2"
         )
         self.theme_btn.pack(side="right")
         self.theme_btn.bind("<Button-1>", lambda e: self.app.toggle_theme())
+
+    def apply_theme(self, p):
+        self.config(bg=p["bg"], highlightbackground=p["border"])
+        self.top_frame.config(bg=p["panel"], highlightbackground=p["border"])
+        self.db_menu_btn.config(bg=p["surface"], fg=p["text"])
+        self.tables_hdr.config(bg=p["bg"])
+        self.tables_lbl.config(bg=p["bg"], fg=p["muted"])
+        self.new_tbl_btn.config(bg=p["accent"], fg=p["accent_text"])
+        self.list_frame.config(bg=p["bg"])
+        self.tree_border.config(bg=p["surface"], highlightbackground=p["border"])
+        self.bottom_frame.config(bg=p["panel"], highlightbackground=p["border"])
+        self.user_lbl.config(bg=p["panel"], fg=p["text"])
+        self.logout_lbl.config(bg=p["panel"], fg=p["accent"])
+        self.theme_btn.config(bg=p["surface"], fg=p["text"])
+        if hasattr(self, "admin_frame"):
+            self.admin_frame.config(bg=p["panel"], highlightbackground=p["border"])
+            self.admin_btn.config(bg=p["surface"], fg=p["accent"])
 
     def update_db_name(self, path):
         if path:

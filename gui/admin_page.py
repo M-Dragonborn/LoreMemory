@@ -17,21 +17,22 @@ class AdminPage(tk.Frame):
     def setup_ui(self):
         p = get_palette()
         # Top Header Bar
-        hdr = tk.Frame(self, bg=p["panel"], padx=10, pady=8, highlightbackground=p["border"], highlightthickness=1)
-        hdr.pack(fill="x", side="top", padx=3, pady=3)
+        self.hdr = tk.Frame(self, bg=p["panel"], padx=10, pady=8, highlightbackground=p["border"], highlightthickness=1)
+        self.hdr.pack(fill="x", side="top", padx=3, pady=3)
 
-        tk.Label(hdr, text="👥 User & Role Administration", bg=p["panel"], fg=p["text"], font=("Segoe UI", 10, "bold")).pack(side="left")
+        tk.Label(self.hdr, text="👥 User & Role Administration", bg=p["panel"], fg=p["text"], font=("Segoe UI", 10, "bold")).pack(side="left")
         role_badge = f"{self.app.username} ({self.app.role})"
-        tk.Label(hdr, text=role_badge, bg=p["select_bg"], fg=p["accent"], font=("Segoe UI", 9, "bold"), padx=8, pady=2).pack(side="right")
+        self.role_badge_lbl = tk.Label(self.hdr, text=role_badge, bg=p["select_bg"], fg=p["accent"], font=("Segoe UI", 9, "bold"), padx=8, pady=2)
+        self.role_badge_lbl.pack(side="right")
 
         # View Switcher Segments
-        switch_frame = tk.Frame(self, bg=p["bg"], padx=6, pady=4)
-        switch_frame.pack(fill="x", side="top")
-        self.btn_users_view = tk.Button(switch_frame, text="User Accounts", font=("Segoe UI", 9, "bold"),
+        self.switch_frame = tk.Frame(self, bg=p["bg"], padx=6, pady=4)
+        self.switch_frame.pack(fill="x", side="top")
+        self.btn_users_view = tk.Button(self.switch_frame, text="User Accounts", font=("Segoe UI", 9, "bold"),
                                         relief="flat", bg=p["surface"], fg=p["accent"], cursor="hand2", padx=10, pady=4,
                                         command=lambda: self.switch_view("users"))
         self.btn_users_view.pack(side="left", padx=(0, 4))
-        self.btn_audit_view = tk.Button(switch_frame, text="Role Audit Log", font=("Segoe UI", 9),
+        self.btn_audit_view = tk.Button(self.switch_frame, text="Role Audit Log", font=("Segoe UI", 9),
                                         relief="flat", bg=p["bg"], fg=p["muted"], cursor="hand2", padx=10, pady=4,
                                         command=lambda: self.switch_view("audit"))
         self.btn_audit_view.pack(side="left")
@@ -42,18 +43,18 @@ class AdminPage(tk.Frame):
 
         # 1. Users Frame
         self.users_frame = tk.Frame(self.container, bg=p["surface"])
-        u_toolbar = tk.Frame(self.users_frame, bg=p["panel"], padx=6, pady=6, highlightbackground=p["border"], highlightthickness=1)
-        u_toolbar.pack(fill="x", side="top", pady=(0, 4))
+        self.u_toolbar = tk.Frame(self.users_frame, bg=p["panel"], padx=6, pady=6, highlightbackground=p["border"], highlightthickness=1)
+        self.u_toolbar.pack(fill="x", side="top", pady=(0, 4))
 
-        tk.Button(u_toolbar, text="+ New User", bg=p["accent"], fg=p["accent_text"], font=("Segoe UI", 9, "bold"),
+        tk.Button(self.u_toolbar, text="+ New User", bg=p["accent"], fg=p["accent_text"], font=("Segoe UI", 9, "bold"),
                   relief="flat", cursor="hand2", padx=8, pady=3, command=self.on_create_user).pack(side="left", padx=2)
-        tk.Button(u_toolbar, text="Change Role", bg=p["surface"], fg=p["text"], font=("Segoe UI", 9),
+        tk.Button(self.u_toolbar, text="Change Role", bg=p["surface"], fg=p["text"], font=("Segoe UI", 9),
                   relief="solid", bd=1, cursor="hand2", padx=8, pady=3, command=self.on_change_role).pack(side="left", padx=2)
-        tk.Button(u_toolbar, text="Toggle Active", bg=p["surface"], fg=p["text"], font=("Segoe UI", 9),
+        tk.Button(self.u_toolbar, text="Toggle Active", bg=p["surface"], fg=p["text"], font=("Segoe UI", 9),
                   relief="solid", bd=1, cursor="hand2", padx=8, pady=3, command=self.on_toggle_active).pack(side="left", padx=2)
-        tk.Button(u_toolbar, text="Reset Password", bg=p["surface"], fg=p["text"], font=("Segoe UI", 9),
+        tk.Button(self.u_toolbar, text="Reset Password", bg=p["surface"], fg=p["text"], font=("Segoe UI", 9),
                   relief="solid", bd=1, cursor="hand2", padx=8, pady=3, command=self.on_reset_password).pack(side="left", padx=2)
-        tk.Button(u_toolbar, text="⟳ Refresh", bg=p["surface"], fg=p["text"], font=("Segoe UI", 9),
+        tk.Button(self.u_toolbar, text="⟳ Refresh", bg=p["surface"], fg=p["text"], font=("Segoe UI", 9),
                   relief="solid", bd=1, cursor="hand2", padx=8, pady=3, command=self.load_users).pack(side="right", padx=2)
 
         self.users_tree = ttk.Treeview(self.users_frame, columns=("id", "username", "role", "status", "last_login", "created_at"),
@@ -69,9 +70,9 @@ class AdminPage(tk.Frame):
 
         # 2. Audit Frame
         self.audit_frame = tk.Frame(self.container, bg=p["surface"])
-        a_toolbar = tk.Frame(self.audit_frame, bg=p["panel"], padx=6, pady=6, highlightbackground=p["border"], highlightthickness=1)
-        a_toolbar.pack(fill="x", side="top", pady=(0, 4))
-        tk.Button(a_toolbar, text="⟳ Refresh Audit Log", bg=p["surface"], fg=p["text"], font=("Segoe UI", 9),
+        self.a_toolbar = tk.Frame(self.audit_frame, bg=p["panel"], padx=6, pady=6, highlightbackground=p["border"], highlightthickness=1)
+        self.a_toolbar.pack(fill="x", side="top", pady=(0, 4))
+        tk.Button(self.a_toolbar, text="⟳ Refresh Audit Log", bg=p["surface"], fg=p["text"], font=("Segoe UI", 9),
                   relief="solid", bd=1, cursor="hand2", padx=8, pady=3, command=self.load_audit_log).pack(side="right", padx=2)
 
         self.audit_tree = ttk.Treeview(self.audit_frame, columns=("id", "target", "changed_by", "change", "changed_at", "reason"),
@@ -217,3 +218,17 @@ class AdminPage(tk.Frame):
         con.close()
         if ok: messagebox.showinfo("Success", f"Password for '{u['username']}' updated.", parent=self)
         else: messagebox.showerror("Error", "Failed to reset password.", parent=self)
+
+    def apply_theme(self, p):
+        self.config(bg=p["surface"])
+        self.hdr.config(bg=p["panel"], highlightbackground=p["border"])
+        for child in self.hdr.winfo_children():
+            if isinstance(child, tk.Label): child.config(bg=p["panel"], fg=p["text"])
+        self.role_badge_lbl.config(bg=p["select_bg"], fg=p["accent"])
+        self.switch_frame.config(bg=p["bg"])
+        self.container.config(bg=p["surface"])
+        self.users_frame.config(bg=p["surface"])
+        self.audit_frame.config(bg=p["surface"])
+        self.u_toolbar.config(bg=p["panel"], highlightbackground=p["border"])
+        self.a_toolbar.config(bg=p["panel"], highlightbackground=p["border"])
+        self.switch_view(self.active_subview)

@@ -154,3 +154,21 @@ class TabStrip:
             self.rename_tab(old_t, new_t, new_name)
         if old_h in self.tabs:
             self.rename_tab(old_h, new_h, f"History: {new_name}")
+
+    def apply_theme(self, p):
+        self.container.config(bg=p["bg"])
+        self.header_frame.config(bg=p["panel"], highlightbackground=p["border"])
+        self.content_frame.config(bg=p["surface"], highlightbackground=p["border"])
+        self.empty_label.config(bg=p["surface"], fg=p["muted"])
+        for k, info in self.tabs.items():
+            btn_frame, lbl, cls = info["header"], info["title_lbl"], info["close_lbl"]
+            if k == self.active_key:
+                btn_frame.config(bg=p["surface"], highlightbackground=p["accent"])
+                lbl.config(bg=p["surface"], fg=p["accent"])
+                cls.config(bg=p["surface"], fg=p["danger"])
+            else:
+                btn_frame.config(bg=p["panel"], highlightbackground=p["border"])
+                lbl.config(bg=p["panel"], fg=p["text"])
+                cls.config(bg=p["panel"], fg=p["muted"])
+            if hasattr(info["page"], "apply_theme"):
+                info["page"].apply_theme(p)

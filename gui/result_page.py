@@ -28,23 +28,23 @@ class ResultPage(tk.Frame):
         )
         self.info_label.pack(side="left")
 
-        grid_frame = tk.Frame(
+        self.grid_frame = tk.Frame(
             self, bg=p["surface"],
             highlightbackground=p["border"], highlightthickness=1
         )
-        grid_frame.pack(fill="both", expand=True, padx=3, pady=1)
+        self.grid_frame.pack(fill="both", expand=True, padx=3, pady=1)
 
-        self.tree = ttk.Treeview(grid_frame, selectmode="browse", show="headings")
-        v_scroll = ttk.Scrollbar(grid_frame, orient="vertical", command=self.tree.yview)
-        h_scroll = ttk.Scrollbar(grid_frame, orient="horizontal", command=self.tree.xview)
+        self.tree = ttk.Treeview(self.grid_frame, selectmode="browse", show="headings")
+        v_scroll = ttk.Scrollbar(self.grid_frame, orient="vertical", command=self.tree.yview)
+        h_scroll = ttk.Scrollbar(self.grid_frame, orient="horizontal", command=self.tree.xview)
         self.tree.configure(yscrollcommand=v_scroll.set, xscrollcommand=h_scroll.set)
 
         self.tree.grid(row=0, column=0, sticky="nsew")
         v_scroll.grid(row=0, column=1, sticky="ns")
         h_scroll.grid(row=1, column=0, sticky="ew")
 
-        grid_frame.rowconfigure(0, weight=1)
-        grid_frame.columnconfigure(0, weight=1)
+        self.grid_frame.rowconfigure(0, weight=1)
+        self.grid_frame.columnconfigure(0, weight=1)
 
     def display(self, result):
         self.result = result
@@ -76,3 +76,11 @@ class ResultPage(tk.Frame):
 
     def on_close(self):
         pass
+
+    def apply_theme(self, p):
+        self.config(bg=p["surface"])
+        self.top_bar.config(bg=p["panel"], highlightbackground=p["border"])
+        for child in self.top_bar.winfo_children():
+            if isinstance(child, tk.Label): child.config(bg=p["panel"], fg=p["text"])
+        self.info_label.config(bg=p["panel"], fg=p["muted"])
+        self.grid_frame.config(bg=p["surface"], highlightbackground=p["border"])

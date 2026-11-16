@@ -103,15 +103,17 @@ class MainWindow:
             self.sidebar_collapsed = True
 
     def toggle_theme(self):
-        new_theme = "dark" if CURRENT_THEME == "light" else "light"
-        p = apply(self.root, new_theme)
+        import gui.theme as theme
+        new_theme = "light" if theme.CURRENT_THEME == "dark" else "dark"
+        p = theme.apply(self.root, new_theme)
         self.sidebar.theme_btn.config(text="☀" if new_theme == "dark" else "☾")
+        self.main_container.config(bg=p["bg"])
         self.status_bar.config(bg=p["panel"], highlightbackground=p["border"])
         self.expand_bar.config(bg=p["panel"], highlightbackground=p["border"])
         self.expand_btn.config(bg=p["surface"], fg=p["text"])
         for child in self.status_bar.winfo_children():
             if isinstance(child, tk.Label): child.config(bg=p["panel"], fg=p["text"])
-        self.console.apply_theme(p)
+        self.sidebar.apply_theme(p); self.tabs.apply_theme(p); self.console.apply_theme(p)
 
     def on_open_database(self):
         self.root.after(20, self._do_open_database)

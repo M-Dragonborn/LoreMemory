@@ -35,18 +35,18 @@ class NotepadPage(tk.Frame):
         self.find_lbl = tk.Label(self.find_bar, text="", bg=p["panel"], fg=p["muted"], font=("Segoe UI", 9))
         self.find_lbl.pack(side="left", padx=4)
 
-        text_frame = tk.Frame(
+        self.text_frame = tk.Frame(
             self, bg=p["surface"],
             highlightbackground=p["border"], highlightthickness=1
         )
-        text_frame.pack(fill="both", expand=True, padx=3, pady=1)
+        self.text_frame.pack(fill="both", expand=True, padx=3, pady=1)
 
         self.text = tk.Text(
-            text_frame, wrap="word", font=("Consolas", 10),
+            self.text_frame, wrap="word", font=("Consolas", 10),
             bg=p["surface"], fg=p["text"], padx=10, pady=10,
             borderwidth=0, highlightthickness=0
         )
-        scroll = ttk.Scrollbar(text_frame, orient="vertical", command=self.on_scroll_cmd)
+        scroll = ttk.Scrollbar(self.text_frame, orient="vertical", command=self.on_scroll_cmd)
         self.text.configure(yscrollcommand=self.on_text_scroll)
 
         self.text.pack(side="left", fill="both", expand=True)
@@ -126,14 +126,24 @@ class NotepadPage(tk.Frame):
             self.find_index = (self.find_index - 1 + len(self.find_matches)) % len(self.find_matches)
             self.highlight_current_match()
 
-    def load_more(self):
-        pass
+    def load_more(self): pass
+    def reload(self): pass
+    def on_close(self): pass
 
-    def reload(self):
-        pass
-
-    def on_close(self):
-        pass
+    def apply_theme(self, p):
+        self.config(bg=p["surface"])
+        self.top_bar.config(bg=p["panel"], highlightbackground=p["border"])
+        for child in self.top_bar.winfo_children():
+            if isinstance(child, tk.Label): child.config(bg=p["panel"], fg=p["text"])
+        self.find_bar.config(bg=p["panel"], highlightbackground=p["accent"])
+        self.find_lbl.config(bg=p["panel"], fg=p["muted"])
+        self.text_frame.config(bg=p["surface"], highlightbackground=p["border"])
+        self.text.config(bg=p["surface"], fg=p["text"], insertbackground=p["text"])
+        self.text.tag_configure("header", foreground=p["muted"])
+        self.text.tag_configure("failed", foreground=p["danger"])
+        self.text.tag_configure("error_msg", foreground=p["danger"])
+        self.text.tag_configure("sql", foreground=p["text"])
+        self.text.tag_configure("find_curr", background=p["accent"], foreground=p["accent_text"])
 
 class HistoryPage(NotepadPage):
     def __init__(self, parent, app, table_name=None, return_tab=None):

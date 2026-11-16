@@ -102,6 +102,16 @@ def test_gui_full_smoke():
         app.autocomplete.on_tab(None)
         assert app.console.editor.get("1.0", "end-1c") == "SELECT"
 
+        # Test toggling theme to dark and back to light
+        import gui.theme as theme
+        assert theme.CURRENT_THEME == "light"
+        app.toggle_theme()
+        assert theme.CURRENT_THEME == "dark"
+        assert app.sidebar.theme_btn.cget("text") == "☀"
+        app.toggle_theme()
+        assert theme.CURRENT_THEME == "light"
+        assert app.sidebar.theme_btn.cget("text") == "☾"
+
     app.db.close()
     app.history.close()
     app.memory.close()
