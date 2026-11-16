@@ -57,8 +57,6 @@ class TabStrip:
                 lbl.config(bg=p["surface"], fg=p["accent"], font=("Segoe UI", 9, "bold"))
                 cls.config(bg=p["surface"], fg=p["danger"])
                 info["page"].tkraise()
-                if hasattr(info["page"], "reload"):
-                    info["page"].reload()
             else:
                 btn_frame.config(bg=p["panel"], highlightbackground=p["border"], highlightthickness=1)
                 lbl.config(bg=p["panel"], fg=p["text"], font=("Segoe UI", 9))

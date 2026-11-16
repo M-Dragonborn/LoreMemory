@@ -17,11 +17,12 @@ class Database:
         self.history = history
         self.user_id = user_id
         self.con = None
-        self.path, self.lock = None, threading.RLock()
+        self.path, self.lock, self._schema_cache = None, threading.RLock(), None
 
     def open(self, path, create=False):
         with self.lock:
             self.close()
+            self._schema_cache = None
             real_path = os.path.normcase(os.path.realpath(path))
             if not create and not os.path.exists(real_path): return False
             parent = os.path.dirname(real_path)
@@ -45,6 +46,7 @@ class Database:
 
     def close(self):
         with self.lock:
+            self._schema_cache = None
             if self.con:
                 try:
                     self.con.close()
@@ -84,6 +86,7 @@ class Database:
 
             # Transaction rule: auto BEGIN for modifying statements
             if first_word in {"INSERT", "UPDATE", "DELETE", "REPLACE", "CREATE", "DROP", "ALTER"}:
+                if first_word in {"CREATE", "DROP", "ALTER"}: self._schema_cache = None
                 if not self.con.in_transaction:
                     self.con.execute("BEGIN")
 
@@ -189,11 +192,19 @@ class Database:
                 return cols
             except Exception: return []
 
+    def get_schema_only(self):
+        with self.lock:
+            if not self.con: return []
+            if self._schema_cache is not None: return self._schema_cache
+            self._schema_cache = [{"name": t, "columns": self.get_columns(t)} for t in self.get_tables()]
+            return self._schema_cache
+
     def get_table_info(self):
         with self.lock:
+            schema = self.get_schema_only()
             info = []
-            for t in self.get_tables():
-                cols = self.get_columns(t)
+            for item in schema:
+                t, cols = item["name"], item["columns"]
                 safe_t = str(t).replace('"', '""')
                 try: cnt = self.con.execute(f'SELECT COUNT(*) FROM "{safe_t}"').fetchone()[0]
                 except Exception: cnt = 0

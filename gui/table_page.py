@@ -20,6 +20,7 @@ class TablePage(tk.Frame):
         self.columns = []
         self.rows = []
         self.total_count = 0
+        self.cell_font = tkfont.Font(font=("Segoe UI", 9))
 
         self.setup_ui()
         self.reload()
@@ -116,13 +117,12 @@ class TablePage(tk.Frame):
         self.columns, self.rows, self.total_count = cols, rows, total
 
         self.tree["columns"] = cols
-        f = tkfont.Font(font=("Segoe UI", 9))
-        sample = rows[:50]
+        sample = rows[:15]
         for idx, c in enumerate(cols):
             indicator = (" ▼" if self.descending else " ▲") if c == self.order_by else ""
             self.tree.heading(c, text=f"{c}{indicator}", command=lambda col=c: self.on_sort(col))
-            hw = f.measure(f"{c}{indicator}") + 32
-            cw = max((f.measure(str(r[idx])) for r in sample if idx < len(r) and r[idx] is not None), default=0) + 24
+            hw = self.cell_font.measure(f"{c}{indicator}") + 32
+            cw = max((self.cell_font.measure(str(r[idx])) for r in sample if idx < len(r) and r[idx] is not None), default=0) + 24
             self.tree.column(c, width=min(max(hw, cw, 70), 380), minwidth=50)
 
         children = self.tree.get_children()
@@ -133,7 +133,7 @@ class TablePage(tk.Frame):
             tag = "odd" if idx % 2 else "even"
             self.tree.insert("", "end", values=display_vals, tags=(tag,))
 
-        self.tree_grid.update()
+        self.tree_grid.schedule_update()
         total_pages = max(1, (total + PAGE_SIZE - 1) // PAGE_SIZE)
         self.page_label.config(text=f"Page {self.page} of {total_pages} ({total} rows)")
         self.prev_btn.state(["!disabled" if self.page > 1 else "disabled"])

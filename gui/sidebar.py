@@ -23,16 +23,11 @@ class Sidebar(tk.Frame):
         self.top_frame = tk.Frame(self, bg=p["panel"], padx=8, pady=8, highlightbackground=p["border"], highlightthickness=1)
         self.top_frame.pack(fill="x", side="top", padx=3, pady=3)
 
-        self.db_menu_btn = tk.Menubutton(
-            self.top_frame, text="No Database ▾", font=("Segoe UI", 10, "bold"),
-            bg=p["surface"], fg=p["text"], relief="solid", bd=1, padx=8, pady=3, cursor="hand2"
-        )
+        self.db_menu_btn = tk.Menubutton(self.top_frame, text="No Database ▾", font=("Segoe UI", 10, "bold"), bg=p["surface"], fg=p["text"], relief="solid", bd=1, padx=8, pady=3, cursor="hand2")
         self.db_menu = tk.Menu(self.db_menu_btn, tearoff=0)
-        self.db_menu.add_command(label="Open database...", command=self.app.on_open_database)
-        self.db_menu.add_command(label="New database...", command=self.app.on_new_database)
-        self.db_menu.add_command(label="Close database", command=self.app.on_close_database)
-        self.db_menu_btn.config(menu=self.db_menu)
-        self.db_menu_btn.pack(side="left")
+        for lbl, fn in [("Open database...", self.app.on_open_database), ("New database...", self.app.on_new_database), ("Close database", self.app.on_close_database)]:
+            self.db_menu.add_command(label=lbl, command=fn)
+        self.db_menu_btn.config(menu=self.db_menu); self.db_menu_btn.pack(side="left")
 
         self.collapse_btn = ttk.Button(self.top_frame, text="‹", width=2, command=self.toggle_collapse)
         self.collapse_btn.pack(side="right")
@@ -50,20 +45,43 @@ class Sidebar(tk.Frame):
         self.new_tbl_btn.pack(side="right")
         self.new_tbl_btn.bind("<Button-1>", lambda e: self.open_new_table_dialog())
 
-        # Bottom Bar: User, Logout, Dark Mode toggle
-        self.bottom_frame = tk.Frame(self, bg=p["panel"], padx=8, pady=6, highlightbackground=p["border"], highlightthickness=1)
+        # Bottom Bar: Symmetrical user profile & balanced action toolbar
+        self.bottom_frame = tk.Frame(self, bg=p["panel"], padx=6, pady=6, highlightbackground=p["border"], highlightthickness=1)
         self.bottom_frame.pack(fill="x", side="bottom", padx=3, pady=3)
 
         role = getattr(self.app, "role", "user")
-        if role in ("admin", "super_admin"):
-            self.admin_frame = tk.Frame(self, bg=p["panel"], padx=4, pady=4, highlightbackground=p["border"], highlightthickness=1)
-            self.admin_frame.pack(fill="x", side="bottom", padx=3, pady=(0, 2))
-            self.admin_btn = tk.Button(
-                self.admin_frame, text="⚙ Admin Panel", font=("Segoe UI", 9, "bold"),
-                bg=p["surface"], fg=p["accent"], relief="flat", cursor="hand2", pady=2,
-                command=self._on_admin_click
-            )
-            self.admin_btn.pack(fill="x")
+        user_row = tk.Frame(self.bottom_frame, bg=p["panel"])
+        user_row.pack(fill="x", pady=(0, 4))
+        self.user_lbl = tk.Label(user_row, text=f"👤 {self.app.username}", bg=p["panel"], fg=p["text"], font=("Segoe UI", 9, "bold"))
+        self.user_lbl.pack(side="left")
+        self.role_badge = tk.Label(user_row, text=f" {role.upper()} ", bg=p["surface"], fg=p["accent"], font=("Segoe UI", 7, "bold"), relief="solid", bd=1)
+        self.role_badge.pack(side="right")
+
+        self.btn_row = tk.Frame(self.bottom_frame, bg=p["panel"])
+        self.btn_row.pack(fill="x")
+
+        is_admin = role in ("admin", "super_admin")
+        col_idx = 0
+        if is_admin:
+            self.admin_btn = tk.Button(self.btn_row, text="⚙ Admin", font=("Segoe UI", 8, "bold"),
+                                       bg=p["surface"], fg=p["accent"], relief="solid", bd=1, cursor="hand2", pady=3,
+                                       command=self._on_admin_click)
+            self.admin_btn.grid(row=0, column=col_idx, sticky="ew", padx=(0, 2))
+            self.btn_row.columnconfigure(col_idx, weight=3)
+            col_idx += 1
+
+        self.logout_btn = tk.Button(self.btn_row, text="⎋ Logout", font=("Segoe UI", 8, "bold"),
+                                    bg=p["surface"], fg=p["text"], relief="solid", bd=1, cursor="hand2", pady=3,
+                                    command=lambda: self.app.on_logout())
+        self.logout_btn.grid(row=0, column=col_idx, sticky="ew", padx=2 if is_admin else (0, 2))
+        self.btn_row.columnconfigure(col_idx, weight=3)
+        col_idx += 1
+
+        self.theme_btn = tk.Button(self.btn_row, text="☾", font=("Segoe UI", 9, "bold"),
+                                   bg=p["surface"], fg=p["text"], relief="solid", bd=1, cursor="hand2", pady=3,
+                                   command=lambda: self.app.toggle_theme())
+        self.theme_btn.grid(row=0, column=col_idx, sticky="ew", padx=(2, 0))
+        self.btn_row.columnconfigure(col_idx, weight=1 if is_admin else 2)
 
         # Tables list area enclosed with 1px border
         self.list_frame = tk.Frame(self, bg=p["bg"], padx=3, pady=1)
@@ -78,32 +96,17 @@ class Sidebar(tk.Frame):
         self.tree_scroll.pack(side="right", fill="y")
         self.tree.pack(side="left", fill="both", expand=True)
 
-        self.tree.bind("<ButtonRelease-1>", self.on_tree_click)
-        self.tree.bind("<Double-Button-1>", self.on_tree_activate)
-        self.tree.bind("<Return>", self.on_tree_activate)
-        self.tree.bind("<Button-3>", self.on_context_menu)
-
-        u_txt = f"{self.app.username} ({role})" if role != "user" else self.app.username
-        self.user_lbl = tk.Label(self.bottom_frame, text=u_txt, bg=p["panel"], fg=p["text"], font=("Segoe UI", 9, "bold"))
-        self.user_lbl.pack(side="left")
-
-        self.logout_lbl = tk.Label(self.bottom_frame, text="Log out", fg=p["accent"], bg=p["panel"], cursor="hand2", font=("Segoe UI", 9, "bold", "underline"))
-        self.logout_lbl.pack(side="left", padx=(10, 0))
-        self.logout_lbl.bind("<Button-1>", lambda e: self.app.on_logout())
-
-        self.theme_btn = tk.Label(self.bottom_frame, text=" ☾ ", font=("Segoe UI", 10), fg=p["text"], bg=p["surface"], relief="solid", bd=1, cursor="hand2")
-        self.theme_btn.pack(side="right")
-        self.theme_btn.bind("<Button-1>", lambda e: self.app.toggle_theme())
+        for ev, fn in [("<ButtonRelease-1>", self.on_tree_click), ("<Double-Button-1>", self.on_tree_activate),
+                       ("<Return>", self.on_tree_activate), ("<Button-3>", self.on_context_menu)]:
+            self.tree.bind(ev, fn)
 
         self._apply_tag_styles(p)
         self.refresh_tables([])
 
     def _apply_tag_styles(self, p):
         self.tree.tag_configure("db_root", font=("Segoe UI", 9, "bold"), foreground=p["text"])
-        self.tree.tag_configure("folder", font=("Segoe UI", 9), foreground=p["text"])
-        self.tree.tag_configure("table", font=("Segoe UI", 9), foreground=p["text"])
-        self.tree.tag_configure("column", font=("Segoe UI", 9), foreground=p["text"])
-        self.tree.tag_configure("action", font=("Segoe UI", 9), foreground=p["text"])
+        for tag in ("folder", "table", "column", "action"):
+            self.tree.tag_configure(tag, font=("Segoe UI", 9), foreground=p["text"])
 
     def apply_theme(self, p):
         self.config(bg=p["bg"], highlightbackground=p["border"])
@@ -116,10 +119,11 @@ class Sidebar(tk.Frame):
         self.tree_border.config(bg=p["surface"], highlightbackground=p["border"])
         self.bottom_frame.config(bg=p["panel"], highlightbackground=p["border"])
         self.user_lbl.config(bg=p["panel"], fg=p["text"])
-        self.logout_lbl.config(bg=p["panel"], fg=p["accent"])
+        self.role_badge.config(bg=p["surface"], fg=p["accent"])
+        self.btn_row.config(bg=p["panel"])
+        self.logout_btn.config(bg=p["surface"], fg=p["text"])
         self.theme_btn.config(bg=p["surface"], fg=p["text"])
-        if hasattr(self, "admin_frame"):
-            self.admin_frame.config(bg=p["panel"], highlightbackground=p["border"])
+        if hasattr(self, "admin_btn"):
             self.admin_btn.config(bg=p["surface"], fg=p["accent"])
         self._apply_tag_styles(p)
 
@@ -132,8 +136,8 @@ class Sidebar(tk.Frame):
     def refresh_tables(self, tables_info=None):
         if tables_info is None:
             tables_info = self.app.db.get_table_info() if (self.app.db and self.app.db.con) else []
-        for item in self.tree.get_children():
-            self.tree.delete(item)
+        ch = self.tree.get_children()
+        if ch: self.tree.delete(*ch)
         self.table_items = {}
         self.item_to_table = {}
 
@@ -149,13 +153,9 @@ class Sidebar(tk.Frame):
         tbl_folder = self.tree.insert(root_id, "end", text=f"📁  Tables ({len(tables_info)})", open=True, tags=("folder",))
 
         for t in tables_info:
-            tname = t["name"]
-            cnt = t.get("row_count", 0)
-            cols = t.get("columns", [])
-            node_text = f"📄  {tname}  [{cnt}]"
-            tbl_id = self.tree.insert(tbl_folder, "end", text=node_text, open=False, tags=("table",))
-            self.table_items[tname] = tbl_id
-            self.item_to_table[tbl_id] = tname
+            tname, cnt, cols = t["name"], t.get("row_count", 0), t.get("columns", [])
+            tbl_id = self.tree.insert(tbl_folder, "end", text=f"📄  {tname}  [{cnt}]", open=False, tags=("table",))
+            self.table_items[tname], self.item_to_table[tbl_id] = tbl_id, tname
 
             for c in cols:
                 prefix = "🔑 " if c.get("pk") else ("🔗 " if c.get("fk") else "▫ ")
@@ -170,44 +170,22 @@ class Sidebar(tk.Frame):
 
     def on_tree_click(self, event):
         item_id = self.tree.identify_row(event.y)
-        if not item_id: return
-        tags = self.tree.item(item_id, "tags")
-        if "action_open" in tags:
-            self.app.on_open_database()
-        elif "action_new" in tags:
-            self.app.on_new_database()
-        elif "action_new_tbl" in tags:
-            self.open_new_table_dialog()
-        elif "table" in tags:
-            tname = self.item_to_table.get(item_id)
-            if tname:
-                self.selected_table = tname
-                self.app.open_tab("table", tname)
-        elif "column" in tags:
-            parent_id = self.tree.parent(item_id)
-            tname = self.item_to_table.get(parent_id)
-            if tname:
-                self.selected_table = tname
-                self.app.open_tab("table", tname)
+        if item_id: self._handle_item(item_id)
 
     def on_tree_activate(self, event):
         sel = self.tree.selection()
-        if not sel: return
-        item_id = sel[0]
+        if sel: self._handle_item(sel[0])
+
+    def _handle_item(self, item_id):
         tags = self.tree.item(item_id, "tags")
-        if "table" in tags:
-            tname = self.item_to_table.get(item_id)
-            if tname:
-                self.selected_table = tname
-                self.app.open_tab("table", tname)
-        elif "column" in tags:
-            tname = self.item_to_table.get(self.tree.parent(item_id))
-            if tname:
-                self.selected_table = tname
-                self.app.open_tab("table", tname)
-        elif "action_open" in tags: self.app.on_open_database()
+        if "action_open" in tags: self.app.on_open_database()
         elif "action_new" in tags: self.app.on_new_database()
         elif "action_new_tbl" in tags: self.open_new_table_dialog()
+        elif "table" in tags or "column" in tags:
+            tname = self.item_to_table.get(item_id if "table" in tags else self.tree.parent(item_id))
+            if tname and (self.selected_table != tname or self.app.tabs.active_key != f"table:{tname}"):
+                self.selected_table = tname
+                self.app.open_tab("table", tname)
 
     def on_context_menu(self, event):
         item_id = self.tree.identify_row(event.y)
@@ -251,28 +229,19 @@ class Sidebar(tk.Frame):
 
     def open_new_table_dialog(self):
         if not self.app.db.con:
-            messagebox.showinfo("New Table", "Please open or create a database first.", parent=self.app.root)
-            return
-
+            messagebox.showinfo("New Table", "Please open or create a database first.", parent=self.app.root); return
         def create_cb(sql):
             res = self.app.db.run(sql)
-            if res.error:
-                messagebox.showerror("Error Creating Table", res.error, parent=self.app.root)
-            else:
-                self.app.refresh_tables()
-                self.app.update_pending()
-
+            if res.error: messagebox.showerror("Error Creating Table", res.error, parent=self.app.root)
+            else: self.app.refresh_tables(); self.app.update_pending()
         NewTableDialog(self.app.root, create_cb)
 
-    def toggle_collapse(self):
-        self.app.toggle_sidebar()
+    def toggle_collapse(self): self.app.toggle_sidebar()
 
     def _on_admin_click(self):
-        try:
-            self.app.open_tab("admin", None)
+        try: self.app.open_tab("admin", None)
         except Exception as e:
             try:
-                with open("crash.log", "a", encoding="utf-8") as f:
-                    f.write(f"admin_btn error: {e}\n")
+                with open("crash.log", "a", encoding="utf-8") as f: f.write(f"admin_btn error: {e}\n")
             except Exception: pass
             messagebox.showerror("Admin Error", str(e), parent=self.app.root)

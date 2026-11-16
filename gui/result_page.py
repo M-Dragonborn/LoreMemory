@@ -10,6 +10,7 @@ class ResultPage(tk.Frame):
         super().__init__(parent, bg=p["surface"])
         self.app = app
         self.result = None
+        self.cell_font = tkfont.Font(font=("Segoe UI", 9))
         self.setup_ui()
 
     def setup_ui(self):
@@ -58,12 +59,11 @@ class ResultPage(tk.Frame):
         self.info_label.config(text=info_txt)
 
         self.tree["columns"] = cols
-        f = tkfont.Font(font=("Segoe UI", 9))
-        sample = rows[:50]
+        sample = rows[:15]
         for idx, c in enumerate(cols):
             self.tree.heading(c, text=c)
-            hw = f.measure(str(c)) + 32
-            cw = max((f.measure(str(r[idx])) for r in sample if idx < len(r) and r[idx] is not None), default=0) + 24
+            hw = self.cell_font.measure(str(c)) + 32
+            cw = max((self.cell_font.measure(str(r[idx])) for r in sample if idx < len(r) and r[idx] is not None), default=0) + 24
             self.tree.column(c, width=min(max(hw, cw, 70), 380), minwidth=50)
 
         children = self.tree.get_children()
@@ -74,7 +74,7 @@ class ResultPage(tk.Frame):
             tag = "odd" if idx % 2 else "even"
             self.tree.insert("", "end", values=display_vals, tags=(tag,))
 
-        self.tree_grid.update()
+        self.tree_grid.schedule_update()
         self.app.update_status(table_rows=len(rows))
 
     def reload(self):

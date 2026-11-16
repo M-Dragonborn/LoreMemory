@@ -71,7 +71,7 @@ class MainWindow:
         self.console = Console(self.paned, self)
         self.paned.add(self.console, weight=3)
 
-        self.autocomplete = AutocompletePopup(self.console.editor, lambda: self.db.get_table_info() if self.db.con else [])
+        self.autocomplete = AutocompletePopup(self.console.editor, lambda: self.db.get_schema_only() if self.db.con else [])
 
         # Bottom Status Bar with soft 1px border
         self.status_bar = tk.Frame(self.root, bg=p["panel"], padx=10, pady=5, highlightbackground=p["border"], highlightthickness=1)
