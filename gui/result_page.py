@@ -28,7 +28,7 @@ class ResultPage(tk.Frame):
         self.info_label = tk.Label(self.top_bar, text="", font=("Segoe UI", 9), bg=p["panel"], fg=p["muted"])
         self.info_label.pack(side="left")
 
-        self.grid_frame = tk.Frame(self, bg=p["surface"], highlightbackground=p.get("grid_line", p["border"]), highlightthickness=1)
+        self.grid_frame = tk.Frame(self, bg=p["surface"])
         self.grid_frame.pack(fill="both", expand=True, padx=3, pady=1)
 
         self.tree = ttk.Treeview(self.grid_frame, selectmode="browse", show="headings")
@@ -89,6 +89,6 @@ class ResultPage(tk.Frame):
         for child in self.top_bar.winfo_children():
             if isinstance(child, tk.Label): child.config(bg=p["panel"], fg=p["text"])
         self.info_label.config(bg=p["panel"], fg=p["muted"])
-        self.grid_frame.config(bg=p["surface"], highlightbackground=p.get("grid_line", p["border"]))
+        self.grid_frame.config(bg=p["surface"])
         self.tree_grid.apply_theme(p)
         self._apply_tag_styles(p)

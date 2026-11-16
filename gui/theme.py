@@ -149,19 +149,14 @@ def apply(root, mode="light"):
         background=[("selected", p["select_bg"])],
         foreground=[("selected", p["select_fg"])]
     )
-    style.layout("Treeview.Row", [("border", {"sticky": "nswe", "children": [("Treeitem.row", {"sticky": "nswe"})]})])
-    style.configure("Treeview.Row", borderwidth=1, relief="solid",
-                    bordercolor=p["grid_line"], darkcolor=p["grid_line"], lightcolor=p["grid_line"])
+    style.layout("Treeview.Row", [("Treeitem.row", {"sticky": "nswe"})])
     style.configure(
         "Treeview.Heading",
         font=bold_font,
         background=p["panel"],
         foreground=p["text"],
-        bordercolor=p["grid_line"],
-        darkcolor=p["grid_line"],
-        lightcolor=p["grid_line"],
-        relief="solid",
-        borderwidth=1
+        relief="flat",
+        borderwidth=0
     )
 
     # Clean sidebar treeview without row borders (Regedit style)

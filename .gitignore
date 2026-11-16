@@ -7,3 +7,5 @@ build/
 *.spec
 data/
 
+config.bat
+node_modules
