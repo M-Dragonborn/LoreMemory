@@ -2,7 +2,40 @@ import os
 import tkinter as tk
 import pytest
 from gui.theme import apply
+from gui.login import LoginWindow
 from gui.main_window import MainWindow
+
+def test_login_window_smoke():
+    root = tk.Tk()
+    root.withdraw()
+    apply(root, "light")
+
+    result = {}
+    def on_success(uid, uname):
+        result["user_id"] = uid
+        result["username"] = uname
+
+    win = LoginWindow(root, on_success)
+    assert win.mode == "login"
+    assert win.submit_btn.cget("text") == "Sign In"
+
+    # Test empty submit
+    win.do_submit()
+    assert "enter both" in win.err_label.cget("text")
+
+    # Test switch mode
+    win.toggle_mode()
+    assert win.mode == "register"
+    assert win.submit_btn.cget("text") == "Create Account"
+
+    win.set_mode("login")
+    assert win.mode == "login"
+    assert win.submit_btn.cget("text") == "Sign In"
+
+    # Test dark mode apply
+    apply(root, "dark")
+
+    root.destroy()
 
 def test_gui_full_smoke():
     root = tk.Tk()

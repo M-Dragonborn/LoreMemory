@@ -26,7 +26,7 @@ DARK_PALETTE = {
     "text": "#f8fafc",          # High-contrast white text
     "muted": "#94a3b8",         # Clean light slate text
     "accent": "#38bdf8",        # Bright sky blue
-    "accent_hover": "#0284c7",
+    "accent_hover": "#7dd3fc",
     "accent_text": "#090d16",
     "border": "#3b4b63",        # 15-20% brighter 1px outline in dark mode
     "border_dark": "#64748b",
@@ -102,8 +102,29 @@ def apply(root, mode="light"):
     )
     style.map(
         "Run.TButton",
-        background=[("active", p["accent_hover"])],
-        bordercolor=[("active", p["border_dark"])]
+        background=[("pressed", p["accent_hover"]), ("active", p["accent_hover"])],
+        foreground=[("pressed", p["accent_text"]), ("active", p["accent_text"])],
+        bordercolor=[("pressed", p["border_dark"]), ("active", p["border_dark"])]
+    )
+
+    # Primary action button with comfortable padding and high hover contrast
+    style.configure(
+        "Primary.TButton",
+        background=p["accent"],
+        foreground=p["accent_text"],
+        borderwidth=1,
+        bordercolor=p["accent_hover"],
+        darkcolor=p["accent_hover"],
+        lightcolor=p["accent_hover"],
+        relief="solid",
+        padding=(14, 8),
+        font=bold_font
+    )
+    style.map(
+        "Primary.TButton",
+        background=[("pressed", p["accent_hover"]), ("active", p["accent_hover"])],
+        foreground=[("pressed", p["accent_text"]), ("active", p["accent_text"])],
+        bordercolor=[("pressed", p["accent_hover"]), ("active", p["accent_hover"])]
     )
 
     # Treeview with smooth rows and clear 1px outlines
@@ -134,7 +155,7 @@ def apply(root, mode="light"):
         borderwidth=1
     )
 
-    # Entry with distinct 1px border
+    # Entry with distinct 1px border and focus border
     style.configure(
         "TEntry",
         fieldbackground=p["surface"],
@@ -143,7 +164,13 @@ def apply(root, mode="light"):
         darkcolor=p["border_subtle"],
         lightcolor=p["border_subtle"],
         borderwidth=1,
-        padding=4
+        padding=5
+    )
+    style.map(
+        "TEntry",
+        bordercolor=[("focus", p["accent"])],
+        darkcolor=[("focus", p["accent"])],
+        lightcolor=[("focus", p["accent"])]
     )
 
     style.configure("TPanedwindow", background=p["border"])
