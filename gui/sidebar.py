@@ -100,10 +100,10 @@ class Sidebar(tk.Frame):
 
     def _apply_tag_styles(self, p):
         self.tree.tag_configure("db_root", font=("Segoe UI", 9, "bold"), foreground=p["text"])
-        self.tree.tag_configure("folder", font=("Segoe UI", 9, "bold"), foreground=p["accent"])
+        self.tree.tag_configure("folder", font=("Segoe UI", 9), foreground=p["text"])
         self.tree.tag_configure("table", font=("Segoe UI", 9), foreground=p["text"])
-        self.tree.tag_configure("column", font=("Segoe UI", 8), foreground=p["muted"])
-        self.tree.tag_configure("action", font=("Segoe UI", 9, "italic"), foreground=p["accent"])
+        self.tree.tag_configure("column", font=("Segoe UI", 9), foreground=p["text"])
+        self.tree.tag_configure("action", font=("Segoe UI", 9), foreground=p["text"])
 
     def apply_theme(self, p):
         self.config(bg=p["bg"], highlightbackground=p["border"])
