@@ -22,48 +22,48 @@ class Console(tk.Frame):
     def setup_ui(self):
         p = get_palette()
 
-        # Console Header Bar / Title Bar
-        self.header = tk.Frame(
-            self, bg=p["panel"], padx=10, pady=7,
-            highlightbackground=p["border"], highlightthickness=1
-        )
-        self.header.pack(fill="x", side="top", padx=2, pady=(2, 0))
+        # Bottom Button & Status Area docked to bottom
+        self.bot_pane = tk.Frame(self, bg=p["panel"], padx=8, pady=6, highlightbackground=p["border"], highlightthickness=1)
+        self.bot_pane.pack(fill="x", side="bottom", padx=2, pady=(0, 2))
 
-        title_box = tk.Frame(self.header, bg=p["panel"])
-        title_box.pack(side="left")
+        self.pending_lbl = tk.Label(self.bot_pane, text="No pending changes", bg=p["panel"], fg=p["muted"], font=("Segoe UI", 9, "bold"))
+        self.pending_lbl.pack(anchor="w", pady=(0, 4))
 
-        self.hdr_prompt = tk.Label(
-            title_box, text=">_", font=("Consolas", 10, "bold"),
-            fg=p["accent"], bg=p["panel"]
-        )
-        self.hdr_prompt.pack(side="left", padx=(0, 6))
+        btn_row1 = tk.Frame(self.bot_pane, bg=p["panel"])
+        btn_row1.pack(fill="x", pady=(0, 4))
+        self.run_btn = ttk.Button(btn_row1, text="Run", style="Run.TButton", command=self.on_run)
+        self.run_btn.pack(side="left", padx=(0, 4))
+        self.commit_btn = ttk.Button(btn_row1, text="Commit", command=self.on_commit)
+        self.commit_btn.pack(side="left", padx=3)
+        self.rollback_btn = ttk.Button(btn_row1, text="Rollback", command=self.on_rollback)
+        self.rollback_btn.pack(side="left", padx=3)
 
-        self.hdr_title = tk.Label(
-            title_box, text="SQL Console", font=("Segoe UI", 9, "bold"),
-            fg=p["text"], bg=p["panel"]
-        )
-        self.hdr_title.pack(side="left")
+        btn_row2 = tk.Frame(self.bot_pane, bg=p["panel"])
+        btn_row2.pack(fill="x")
+        ttk.Button(btn_row2, text="Table history", command=self.on_table_history).pack(side="left", padx=(0, 2))
+        ttk.Button(btn_row2, text="Memory", command=self.on_memory).pack(side="left", padx=2)
+        ttk.Button(btn_row2, text="Copy last", command=self.on_copy_last).pack(side="left", padx=2)
+        ttk.Button(btn_row2, text="Clear", command=self.on_clear_output).pack(side="left", padx=2)
 
-        self.hdr_hint = tk.Label(
-            self.header, text="Ctrl+Enter to Run", font=("Segoe UI", 8),
-            fg=p["muted"], bg=p["panel"]
-        )
-        self.hdr_hint.pack(side="right")
-
+        # Paned Window between Console Output (Box 1) and SQL Console Editor (Box 2)
         paned = ttk.Panedwindow(self, orient="vertical")
         paned.pack(fill="both", expand=True, padx=2, pady=2)
 
-        top_pane = tk.Frame(paned, bg=p["bg"])
-        paned.add(top_pane, weight=3)
+        # Box 1: Output Area with soft border & title bar
+        out_frame = tk.Frame(paned, bg=p["surface"], highlightbackground=p["border"], highlightthickness=1)
+        paned.add(out_frame, weight=1)
 
-        # Output Area with soft border
-        out_frame = tk.Frame(top_pane, bg=p["surface"], highlightbackground=p["border"], highlightthickness=1)
-        out_frame.pack(fill="both", expand=True, side="top", pady=(0, 4))
+        self.out_hdr = tk.Frame(out_frame, bg=p["panel"], padx=8, pady=5, highlightbackground=p["border"], highlightthickness=1)
+        self.out_hdr.pack(fill="x", side="top")
+        self.out_title = tk.Label(self.out_hdr, text="Console Output", font=("Segoe UI", 9, "bold"), fg=p["text"], bg=p["panel"])
+        self.out_title.pack(side="left")
+        self.out_hint = tk.Label(self.out_hdr, text="Execution Log", font=("Segoe UI", 8), fg=p["muted"], bg=p["panel"])
+        self.out_hint.pack(side="right")
 
         self.output = tk.Text(
             out_frame, wrap="word", font=("Consolas", 9),
             bg=p["surface"], fg=p["text"], padx=8, pady=8,
-            borderwidth=0, highlightthickness=0, state="disabled"
+            borderwidth=0, highlightthickness=0
         )
         out_scroll = ttk.Scrollbar(out_frame, orient="vertical", command=self.output.yview)
         self.output.configure(yscrollcommand=out_scroll.set)
@@ -73,10 +73,26 @@ class Console(tk.Frame):
         self.output.tag_configure("cmd", foreground=p["text"], font=("Consolas", 9, "bold"))
         self.output.tag_configure("outcome", foreground=p["muted"], font=("Consolas", 9))
         self.output.tag_configure("error", foreground=p["danger"], font=("Consolas", 9, "bold"))
+        self.output.insert("end", "-- Query execution output and errors will appear here --\n", "outcome")
+        self.output.config(state="disabled")
 
-        # Editor Area with soft 1px border
-        ed_frame = tk.Frame(top_pane, bg=p["surface"], highlightbackground=p["border"], highlightthickness=1)
-        ed_frame.pack(fill="both", expand=True, side="bottom")
+        # Box 2: SQL Console Editor with title bar
+        ed_frame = tk.Frame(paned, bg=p["surface"], highlightbackground=p["border"], highlightthickness=1)
+        paned.add(ed_frame, weight=1)
+
+        self.header = tk.Frame(ed_frame, bg=p["panel"], padx=8, pady=5, highlightbackground=p["border"], highlightthickness=1)
+        self.header.pack(fill="x", side="top")
+        title_box = tk.Frame(self.header, bg=p["panel"])
+        title_box.pack(side="left")
+
+        self.hdr_prompt = tk.Label(title_box, text=">_", font=("Consolas", 10, "bold"), fg=p["accent"], bg=p["panel"])
+        self.hdr_prompt.pack(side="left", padx=(0, 6))
+
+        self.hdr_title = tk.Label(title_box, text="SQL Console", font=("Segoe UI", 9, "bold"), fg=p["text"], bg=p["panel"])
+        self.hdr_title.pack(side="left")
+
+        self.hdr_hint = tk.Label(self.header, text="Ctrl+Enter to Run", font=("Segoe UI", 8), fg=p["muted"], bg=p["panel"])
+        self.hdr_hint.pack(side="right")
 
         self.editor = tk.Text(
             ed_frame, wrap="word", font=("Consolas", 10),
@@ -91,35 +107,16 @@ class Console(tk.Frame):
                       ("<Up>", self.on_arrow_up), ("<Down>", self.on_arrow_down)]:
             self.editor.bind(k, fn)
 
-        # Button & Status Area with panel border
-        bot_pane = tk.Frame(paned, bg=p["panel"], padx=8, pady=6, highlightbackground=p["border"], highlightthickness=1)
-        paned.add(bot_pane, weight=1)
-
-        self.pending_lbl = tk.Label(bot_pane, text="No pending changes", bg=p["panel"], fg=p["muted"], font=("Segoe UI", 9, "bold"))
-        self.pending_lbl.pack(anchor="w", pady=(0, 4))
-
-        btn_row1 = tk.Frame(bot_pane, bg=p["panel"])
-        btn_row1.pack(fill="x", pady=(0, 4))
-        self.run_btn = ttk.Button(btn_row1, text="Run", style="Run.TButton", command=self.on_run)
-        self.run_btn.pack(side="left", padx=(0, 4))
-        self.commit_btn = ttk.Button(btn_row1, text="Commit", command=self.on_commit)
-        self.commit_btn.pack(side="left", padx=3)
-        self.rollback_btn = ttk.Button(btn_row1, text="Rollback", command=self.on_rollback)
-        self.rollback_btn.pack(side="left", padx=3)
-
-        btn_row2 = tk.Frame(bot_pane, bg=p["panel"])
-        btn_row2.pack(fill="x")
-        ttk.Button(btn_row2, text="Table history", command=self.on_table_history).pack(side="left", padx=(0, 2))
-        ttk.Button(btn_row2, text="Memory", command=self.on_memory).pack(side="left", padx=2)
-        ttk.Button(btn_row2, text="Copy last", command=self.on_copy_last).pack(side="left", padx=2)
-        ttk.Button(btn_row2, text="Clear", command=self.on_clear_output).pack(side="left", padx=2)
-
     def apply_theme(self, p):
         self.config(bg=p["bg"], highlightbackground=p["border"])
+        self.out_hdr.config(bg=p["panel"], highlightbackground=p["border"])
+        self.out_title.config(bg=p["panel"], fg=p["text"])
+        self.out_hint.config(bg=p["panel"], fg=p["muted"])
         self.header.config(bg=p["panel"], highlightbackground=p["border"])
         self.hdr_prompt.config(bg=p["panel"], fg=p["accent"])
         self.hdr_title.config(bg=p["panel"], fg=p["text"])
         self.hdr_hint.config(bg=p["panel"], fg=p["muted"])
+        self.bot_pane.config(bg=p["panel"], highlightbackground=p["border"])
         self.output.config(bg=p["surface"], fg=p["text"])
         self.editor.config(bg=p["surface"], fg=p["text"], insertbackground=p["text"])
         self.update_pending_status(self.app.db.has_pending)
