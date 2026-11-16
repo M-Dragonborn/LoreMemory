@@ -1,4 +1,5 @@
 import tkinter as tk
+import tkinter.font as tkfont
 from tkinter import ttk, messagebox
 from config import PAGE_SIZE
 from gui.dialogs import RowDialog
@@ -84,6 +85,11 @@ class TablePage(tk.Frame):
 
         self.grid_frame.rowconfigure(0, weight=1)
         self.grid_frame.columnconfigure(0, weight=1)
+        self._apply_tag_styles(p)
+
+    def _apply_tag_styles(self, p):
+        self.tree.tag_configure("even", background=p["surface"], foreground=p["text"])
+        self.tree.tag_configure("odd", background=p.get("grid_alt", p["panel"]), foreground=p["text"])
 
     def on_filter_changed(self, event=None):
         if self.filter_after_id:
@@ -105,24 +111,25 @@ class TablePage(tk.Frame):
             descending=self.descending,
             search=self.search_text
         )
-        self.columns = cols
-        self.rows = rows
-        self.total_count = total
+        self.columns, self.rows, self.total_count = cols, rows, total
 
         self.tree["columns"] = cols
-        for c in cols:
-            indicator = ""
-            if c == self.order_by:
-                indicator = " ▼" if self.descending else " ▲"
+        f = tkfont.Font(font=("Segoe UI", 9))
+        sample = rows[:50]
+        for idx, c in enumerate(cols):
+            indicator = (" ▼" if self.descending else " ▲") if c == self.order_by else ""
             self.tree.heading(c, text=f"{c}{indicator}", command=lambda col=c: self.on_sort(col))
-            self.tree.column(c, width=120, minwidth=60)
+            hw = f.measure(f"{c}{indicator}") + 32
+            cw = max((f.measure(str(r[idx])) for r in sample if idx < len(r) and r[idx] is not None), default=0) + 24
+            self.tree.column(c, width=min(max(hw, cw, 70), 380), minwidth=50)
 
-        for item in self.tree.get_children():
-            self.tree.delete(item)
+        children = self.tree.get_children()
+        if children: self.tree.delete(*children)
 
-        for r in rows:
+        for idx, r in enumerate(rows):
             display_vals = ["" if v is None else str(v) for v in r]
-            self.tree.insert("", "end", values=display_vals)
+            tag = "odd" if idx % 2 else "even"
+            self.tree.insert("", "end", values=display_vals, tags=(tag,))
 
         total_pages = max(1, (total + PAGE_SIZE - 1) // PAGE_SIZE)
         self.page_label.config(text=f"Page {self.page} of {total_pages} ({total} rows)")
@@ -226,3 +233,4 @@ class TablePage(tk.Frame):
         self.bot_bar.config(bg=p["panel"], highlightbackground=p["border"])
         self.page_label.config(bg=p["panel"], fg=p["muted"])
         self.grid_frame.config(bg=p["surface"], highlightbackground=p["border"])
+        self._apply_tag_styles(p)

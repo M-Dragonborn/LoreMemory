@@ -29,9 +29,16 @@ class Database:
             self.path = real_path
             try:
                 self.con = sqlite3.connect(
-                    self.path, isolation_level=None, check_same_thread=False, timeout=5.0
+                    self.path, isolation_level=None, check_same_thread=False, timeout=10.0
                 )
                 self.con.execute("PRAGMA foreign_keys = ON")
+                try:
+                    self.con.execute("PRAGMA journal_mode = WAL")
+                    self.con.execute("PRAGMA synchronous = NORMAL")
+                    self.con.execute("PRAGMA cache_size = -64000")
+                    self.con.execute("PRAGMA temp_store = MEMORY")
+                    self.con.execute("PRAGMA mmap_size = 268435456")
+                except Exception: pass
                 return True
             except Exception:
                 self.close(); return False

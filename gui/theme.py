@@ -16,7 +16,9 @@ LIGHT_PALETTE = {
     "danger": "#dc2626",
     "success": "#16a34a",
     "select_bg": "#bae6fd",     # Vivid light blue selection
-    "select_fg": "#0369a1"
+    "select_fg": "#0369a1",
+    "grid_alt": "#f8fafc",      # Subtle 80% light transparency tint for alternating rows
+    "grid_line": "#e2e8f0"      # Clean subtle 1px grid divider
 }
 
 DARK_PALETTE = {
@@ -34,7 +36,9 @@ DARK_PALETTE = {
     "danger": "#ef4444",
     "success": "#22c55e",
     "select_bg": "#0284c7",
-    "select_fg": "#ffffff"
+    "select_fg": "#ffffff",
+    "grid_alt": "#1a2538",      # Subtle flipped dark contrast tint for alternating rows
+    "grid_line": "#26354a"      # Clean flipped subtle 1px grid divider
 }
 
 CURRENT_THEME = "light"
@@ -133,9 +137,9 @@ def apply(root, mode="light"):
         background=p["surface"],
         foreground=p["text"],
         fieldbackground=p["surface"],
-        bordercolor=p["border"],
-        darkcolor=p["border_subtle"],
-        lightcolor=p["border_subtle"],
+        bordercolor=p["grid_line"],
+        darkcolor=p["grid_line"],
+        lightcolor=p["grid_line"],
         borderwidth=1,
         relief="solid",
         rowheight=26
@@ -150,7 +154,7 @@ def apply(root, mode="light"):
         font=bold_font,
         background=p["panel"],
         foreground=p["text"],
-        bordercolor=p["border"],
+        bordercolor=p["grid_line"],
         relief="solid",
         borderwidth=1
     )
