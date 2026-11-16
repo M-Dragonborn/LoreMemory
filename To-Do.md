@@ -6,7 +6,7 @@ This document tracks upcoming features and architectural extensions that are pla
 
 ## 1. Multi-Tier Role Hierarchy (Super Admin, Admin, Standard User)
 
-### Status: Planned / On Hold (Not active focus)
+### Status: Completed & Verified (Implemented in auth.py, gui/admin_page.py, gui/sidebar.py)
 
 ### Goal:
 Introduce role-based access control (RBAC) into `data/users.db`:

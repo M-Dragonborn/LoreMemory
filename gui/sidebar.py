@@ -81,7 +81,19 @@ class Sidebar(tk.Frame):
         )
         bottom_frame.pack(fill="x", side="bottom", padx=3, pady=3)
 
-        self.user_lbl = tk.Label(bottom_frame, text=self.app.username, bg=p["panel"], fg=p["text"], font=("Segoe UI", 9, "bold"))
+        role = getattr(self.app, "role", "user")
+        if role in ("admin", "super_admin"):
+            admin_frame = tk.Frame(self, bg=p["panel"], padx=4, pady=4, highlightbackground=p["border"], highlightthickness=1)
+            admin_frame.pack(fill="x", side="bottom", padx=3, pady=(0, 2))
+            self.admin_btn = tk.Button(
+                admin_frame, text="⚙ Admin Panel", font=("Segoe UI", 9, "bold"),
+                bg=p["surface"], fg=p["accent"], relief="flat", cursor="hand2", pady=2,
+                command=lambda: self.app.open_tab("admin", None)
+            )
+            self.admin_btn.pack(fill="x")
+
+        u_txt = f"{self.app.username} ({role})" if role != "user" else self.app.username
+        self.user_lbl = tk.Label(bottom_frame, text=u_txt, bg=p["panel"], fg=p["text"], font=("Segoe UI", 9, "bold"))
         self.user_lbl.pack(side="left")
 
         self.logout_lbl = tk.Label(

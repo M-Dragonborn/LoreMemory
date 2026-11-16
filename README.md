@@ -3,7 +3,7 @@
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue.svg)](https://www.python.org/)
 [![Database](https://img.shields.io/badge/sqlite-3-green.svg)](https://www.sqlite.org/)
 [![Dependencies](https://img.shields.io/badge/dependencies-zero%20external-orange.svg)](#dependencies)
-[![Tests](https://img.shields.io/badge/tests-32%20passed-brightgreen.svg)](#testing)
+[![Tests](https://img.shields.io/badge/tests-34%20passed-brightgreen.svg)](#testing)
 
 **LoreMemory** is a high-contrast desktop **SQLite Database Management System (DBMS)** paired with an integrated **Mnemosyne-style AI Memory Engine**.
 
@@ -34,9 +34,10 @@ Built entirely on Python's standard library and Tkinter, it provides a fast, zer
 * **Automatic Consolidation:** Background scheduling clusters stale working memories into condensed episodic memories.
 * **Model Context Protocol (MCP) Server:** Standalone stdio JSON-RPC server (`mcp_server.py`) exposing `recall`, `remember`, `recent`, `consolidate`, and `query_sql` to external LLM agents (e.g. Nous Hermes, Claude, Cursor). See [Hermes MCP Guide](docs/HERMES_MCP_GUIDE.md).
 
-### 🔒 Authentication & Audit History
+### 🔒 Authentication, Roles & Audit History
 * **Cryptographic Security:** Passwords hashed with **PBKDF2-HMAC-SHA256** using 100,000 iterations and per-user 16-byte random salts.
 * **Timing-Attack Protection:** Safe authentication comparison via `hmac.compare_digest`.
+* **Multi-Tier Role Hierarchy & Admin Panel:** Three-tier RBAC (`super_admin`, `admin`, `user`), account deactivation/activation, password resets, and immutable role audit trail in `role_audit_log`.
 * **Execution History Log:** Every query, mutation, and schema alteration is automatically recorded with execution timing, row impact, and associated user IDs.
 
 ### 🎨 High-Contrast Minimalist Interface
@@ -51,11 +52,11 @@ Built entirely on Python's standard library and Tkinter, it provides a fast, zer
 
 When initialized with sample data, the following local accounts are ready to use:
 
-| User ID | Username | Password |
-| :---: | :--- | :--- |
-| **1** | `musfiq` | `musfiq121` |
-| **2** | `rayed` | `rayed097` |
-| **3** | `anower` | `anower122` |
+| User ID | Username | Role | Password |
+| :---: | :--- | :--- | :--- |
+| **1** | `musfiq` | `super_admin` | `musfiq121` |
+| **2** | `rayed` | `admin` | `rayed097` |
+| **3** | `anower` | `user` | `anower122` |
 
 ---
 
@@ -143,6 +144,7 @@ LoreMemory/
 ├── mcp_server.py            # Model Context Protocol stdio server for LLMs
 ├── memory.py                # Mnemosyne AI memory engine (working, episodic, semantic)
 ├── gui/
+│   ├── admin_page.py        # User & role administration panel with audit log
 │   ├── login.py             # Stylized minimal login & registration card
 │   ├── theme.py             # High-contrast color palette & ttk styles
 │   ├── main_window.py       # Full-window layout, toolbar, status bar & sidebar

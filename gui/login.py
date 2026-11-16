@@ -152,7 +152,12 @@ class LoginWindow:
 
         uid = auth.login_user(u, p)
         if uid is None:
-            self.err_label.config(text="● Invalid username or password", fg=get_palette()["danger"])
+            con = auth.get_connection()
+            usr = auth.get_user_by_name(con, u); con.close()
+            if usr and not usr["is_active"]:
+                self.err_label.config(text="● This account has been deactivated by an admin.", fg=get_palette()["danger"])
+            else:
+                self.err_label.config(text="● Invalid username or password", fg=get_palette()["danger"])
         else:
             self.root.unbind("<Return>")
             self.on_success(uid, u)

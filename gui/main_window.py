@@ -17,24 +17,23 @@ from gui.autocomplete import AutocompletePopup
 
 class MainWindow:
     def __init__(self, root, user_id, username, on_logout=None):
-        self.root = root
-        self.user_id = user_id
-        self.username = username
-        self.on_logout_cb = on_logout
-
+        self.root, self.user_id, self.username, self.on_logout_cb = root, user_id, username, on_logout
         self.root.title("LoreMemory")
+        try: self.root.state("zoomed")
+        except Exception: self.root.geometry(MIN_WINDOW)
+
+        self.role = "user"
         try:
-            self.root.state("zoomed")
-        except Exception:
-            self.root.geometry(MIN_WINDOW)
+            import auth
+            con = auth.get_connection(USERS_DB)
+            u = auth.get_user(con, self.user_id); con.close()
+            if u: self.role = u.get("role", "user")
+        except Exception: pass
 
         self.history = HistoryLog(HISTORY_DB, USERS_DB)
         self.memory = Memory(MEMORY_DB)
         self.db = Database(history=self.history, user_id=self.user_id)
-
-        self.active_table = None
-        self.running_thread = None
-        self.sidebar_collapsed = False
+        self.active_table, self.running_thread, self.sidebar_collapsed = None, None, False
 
         self.setup_ui()
         self.root.protocol("WM_DELETE_WINDOW", self.on_close_requested)
@@ -77,7 +76,8 @@ class MainWindow:
         # Bottom Status Bar with soft 1px border
         self.status_bar = tk.Frame(self.root, bg=p["panel"], padx=10, pady=5, highlightbackground=p["border"], highlightthickness=1)
         self.status_bar.pack(fill="x", side="bottom")
-        self.status_user = tk.Label(self.status_bar, text=f"User: {self.username}", bg=p["panel"], fg=p["text"], font=("Segoe UI", 9, "bold"))
+        role_tag = f" ({self.role})" if self.role != "user" else ""
+        self.status_user = tk.Label(self.status_bar, text=f"User: {self.username}{role_tag}", bg=p["panel"], fg=p["text"], font=("Segoe UI", 9, "bold"))
         self.status_user.pack(side="left", padx=(0, 14))
         self.status_file = tk.Label(self.status_bar, text="No database open", bg=p["panel"], fg=p["muted"], font=("Segoe UI", 9))
         self.status_file.pack(side="left", padx=(0, 14))
@@ -186,6 +186,9 @@ class MainWindow:
             fn = lambda: HistoryPage(self.tabs.content_frame, self, table_name=name, return_tab=ret)
         elif kind == "memory":
             key, title, fn = "memory", "Memory", lambda: MemoryPage(self.tabs.content_frame, self)
+        elif kind == "admin":
+            from gui.admin_page import AdminPage
+            key, title, fn = "admin", "Admin Panel", lambda: AdminPage(self.tabs.content_frame, self)
         else: return
         if key not in self.tabs.tabs:
             self.tabs.add_tab(key, kind, title, fn())
@@ -208,8 +211,6 @@ class MainWindow:
         if kind == "table":
             tname = key.split(":", 1)[1]
             h_key = f"history:{tname}"
-            if h_key in self.tabs.tabs:
-                self.tabs.close_tab(h_key)
             if h_key in self.tabs.tabs:
                 self.tabs.close_tab(h_key)
 

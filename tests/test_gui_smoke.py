@@ -65,6 +65,18 @@ def test_gui_full_smoke():
         app.open_tab("memory", None)
         assert "memory" in app.tabs.tabs
 
+        # Open admin tab (musfiq is super_admin)
+        app.open_tab("admin", None)
+        assert "admin" in app.tabs.tabs
+        admin_page = app.tabs.tabs["admin"]["page"]
+        assert len(admin_page.users_tree.get_children()) >= 1
+        admin_page.switch_view("audit")
+        assert admin_page.active_subview == "audit"
+        admin_page.switch_view("users")
+        assert admin_page.active_subview == "users"
+        app.tabs.close_tab("admin")
+        assert "admin" not in app.tabs.tabs
+
         # Close tabs
         app.tabs.close_tab("history:students")
         assert "history:students" not in app.tabs.tabs
