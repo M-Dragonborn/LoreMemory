@@ -31,16 +31,20 @@ def start_gui(initial_db=None):
     root = tk.Tk()
     def on_tk_exception(exc_type, exc_val, exc_tb):
         err = "".join(traceback.format_exception(exc_type, exc_val, exc_tb))
-        print("Exception:", err, file=sys.stderr)
         try:
             with open("crash.log", "a", encoding="utf-8") as f:
                 f.write(err + "\n")
-        except Exception: pass
+        except Exception:
+            pass
+        if sys.stderr:
+            try: print("Exception:", err, file=sys.stderr)
+            except Exception: pass
         try:
             messagebox.showerror("Unexpected Error", f"An error occurred:\n\n{err}", parent=root)
         except Exception:
             pass
     root.report_callback_exception = on_tk_exception
+    sys.excepthook = on_tk_exception
 
     apply(root, "light")
     try:

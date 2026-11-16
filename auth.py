@@ -1,6 +1,9 @@
 import hashlib
 import hmac
+import os
 import secrets
+
+_INITIALIZED = set()
 
 def init_users(con):
     con.execute("PRAGMA foreign_keys = ON")
@@ -86,8 +89,13 @@ def get_connection(path=None):
     import sqlite3
     from config import USERS_DB
     p = str(path or USERS_DB)
-    con = sqlite3.connect(p, timeout=5.0)
-    init_users(con)
+    con = sqlite3.connect(p, timeout=15.0)
+    try: con.execute("PRAGMA journal_mode = WAL")
+    except Exception: pass
+    norm_p = os.path.normcase(os.path.abspath(p))
+    if norm_p not in _INITIALIZED:
+        init_users(con)
+        _INITIALIZED.add(norm_p)
     return con
 
 def login_user(username, password, path=None):

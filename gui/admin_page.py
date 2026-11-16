@@ -11,21 +11,22 @@ class AdminPage(tk.Frame):
         self.app = app
         self.active_subview = "users"
         self.setup_ui()
-        self.load_users()
-        self.load_audit_log()
+        try:
+            self.load_users()
+            self.load_audit_log()
+        except Exception:
+            pass
 
     def setup_ui(self):
         p = get_palette()
-        # Top Header Bar
         self.hdr = tk.Frame(self, bg=p["panel"], padx=10, pady=8, highlightbackground=p["border"], highlightthickness=1)
         self.hdr.pack(fill="x", side="top", padx=3, pady=3)
 
-        tk.Label(self.hdr, text="👥 User & Role Administration", bg=p["panel"], fg=p["text"], font=("Segoe UI", 10, "bold")).pack(side="left")
+        tk.Label(self.hdr, text="User & Role Administration", bg=p["panel"], fg=p["text"], font=("Segoe UI", 10, "bold")).pack(side="left")
         role_badge = f"{self.app.username} ({self.app.role})"
         self.role_badge_lbl = tk.Label(self.hdr, text=role_badge, bg=p["select_bg"], fg=p["accent"], font=("Segoe UI", 9, "bold"), padx=8, pady=2)
         self.role_badge_lbl.pack(side="right")
 
-        # View Switcher Segments
         self.switch_frame = tk.Frame(self, bg=p["bg"], padx=6, pady=4)
         self.switch_frame.pack(fill="x", side="top")
         self.btn_users_view = tk.Button(self.switch_frame, text="User Accounts", font=("Segoe UI", 9, "bold"),
@@ -37,7 +38,6 @@ class AdminPage(tk.Frame):
                                         command=lambda: self.switch_view("audit"))
         self.btn_audit_view.pack(side="left")
 
-        # Container for sub-views
         self.container = tk.Frame(self, bg=p["surface"])
         self.container.pack(fill="both", expand=True, padx=3, pady=3)
 
@@ -54,7 +54,7 @@ class AdminPage(tk.Frame):
                   relief="solid", bd=1, cursor="hand2", padx=8, pady=3, command=self.on_toggle_active).pack(side="left", padx=2)
         tk.Button(self.u_toolbar, text="Reset Password", bg=p["surface"], fg=p["text"], font=("Segoe UI", 9),
                   relief="solid", bd=1, cursor="hand2", padx=8, pady=3, command=self.on_reset_password).pack(side="left", padx=2)
-        tk.Button(self.u_toolbar, text="⟳ Refresh", bg=p["surface"], fg=p["text"], font=("Segoe UI", 9),
+        tk.Button(self.u_toolbar, text="Refresh", bg=p["surface"], fg=p["text"], font=("Segoe UI", 9),
                   relief="solid", bd=1, cursor="hand2", padx=8, pady=3, command=self.load_users).pack(side="right", padx=2)
 
         self.users_tree = ttk.Treeview(self.users_frame, columns=("id", "username", "role", "status", "last_login", "created_at"),
@@ -64,15 +64,15 @@ class AdminPage(tk.Frame):
             self.users_tree.heading(col, text=name); self.users_tree.column(col, width=w, anchor="center" if col in ("id", "role", "status") else "w")
         u_scroll = ttk.Scrollbar(self.users_frame, orient="vertical", command=self.users_tree.yview)
         self.users_tree.configure(yscrollcommand=u_scroll.set)
-        self.users_tree.pack(side="left", fill="both", expand=True)
         u_scroll.pack(side="right", fill="y")
+        self.users_tree.pack(side="left", fill="both", expand=True)
         self.users_frame.pack(fill="both", expand=True)
 
         # 2. Audit Frame
         self.audit_frame = tk.Frame(self.container, bg=p["surface"])
         self.a_toolbar = tk.Frame(self.audit_frame, bg=p["panel"], padx=6, pady=6, highlightbackground=p["border"], highlightthickness=1)
         self.a_toolbar.pack(fill="x", side="top", pady=(0, 4))
-        tk.Button(self.a_toolbar, text="⟳ Refresh Audit Log", bg=p["surface"], fg=p["text"], font=("Segoe UI", 9),
+        tk.Button(self.a_toolbar, text="Refresh Audit Log", bg=p["surface"], fg=p["text"], font=("Segoe UI", 9),
                   relief="solid", bd=1, cursor="hand2", padx=8, pady=3, command=self.load_audit_log).pack(side="right", padx=2)
 
         self.audit_tree = ttk.Treeview(self.audit_frame, columns=("id", "target", "changed_by", "change", "changed_at", "reason"),
@@ -82,8 +82,8 @@ class AdminPage(tk.Frame):
             self.audit_tree.heading(col, text=name); self.audit_tree.column(col, width=w, anchor="center" if col in ("id", "change") else "w")
         a_scroll = ttk.Scrollbar(self.audit_frame, orient="vertical", command=self.audit_tree.yview)
         self.audit_tree.configure(yscrollcommand=a_scroll.set)
-        self.audit_tree.pack(side="left", fill="both", expand=True)
         a_scroll.pack(side="right", fill="y")
+        self.audit_tree.pack(side="left", fill="both", expand=True)
 
     def switch_view(self, view):
         p = get_palette()
@@ -101,35 +101,55 @@ class AdminPage(tk.Frame):
 
     def load_users(self):
         for item in self.users_tree.get_children(): self.users_tree.delete(item)
+        con = None
         try:
             con = auth.get_connection(USERS_DB)
-            users = auth.list_users(con); con.close()
+            users = auth.list_users(con)
             for u in users:
-                status = "Active" if u["is_active"] else "Deactivated"
-                self.users_tree.insert("", "end", values=(u["user_id"], u["username"], u["role"], status, u["last_login"] or "Never", u["created_at"]))
-        except Exception as e: messagebox.showerror("Database Error", f"Failed to load users:\n{e}", parent=self)
+                status = "Active" if u.get("is_active") else "Deactivated"
+                self.users_tree.insert("", "end", values=(
+                    str(u["user_id"]), str(u["username"]), str(u.get("role", "user")),
+                    status, str(u.get("last_login") or "Never"), str(u.get("created_at") or "")
+                ))
+        except Exception as e:
+            try: messagebox.showerror("Database Error", f"Failed to load users:\n{e}", parent=self.app.root)
+            except Exception: pass
+        finally:
+            if con:
+                try: con.close()
+                except Exception: pass
 
     def load_audit_log(self):
         for item in self.audit_tree.get_children(): self.audit_tree.delete(item)
+        con = None
         try:
             con = auth.get_connection(USERS_DB)
-            logs = auth.list_role_audit(con); con.close()
+            logs = auth.list_role_audit(con)
             for l in logs:
-                transition = f"{l['old_role']} → {l['new_role']}"
-                self.audit_tree.insert("", "end", values=(l["audit_id"], l["target_user"], l["changed_by_user"], transition, l["changed_at"], l["reason"]))
-        except Exception as e: messagebox.showerror("Database Error", f"Failed to load audit log:\n{e}", parent=self)
+                transition = f"{l['old_role']} -> {l['new_role']}"
+                self.audit_tree.insert("", "end", values=(
+                    str(l["audit_id"]), str(l["target_user"]), str(l["changed_by_user"]),
+                    transition, str(l["changed_at"] or ""), str(l["reason"] or "")
+                ))
+        except Exception as e:
+            try: messagebox.showerror("Database Error", f"Failed to load audit log:\n{e}", parent=self.app.root)
+            except Exception: pass
+        finally:
+            if con:
+                try: con.close()
+                except Exception: pass
 
     def _get_selected_user(self):
         sel = self.users_tree.selection()
         if not sel:
-            messagebox.showinfo("Selection Required", "Please select a user from the table first.", parent=self)
+            messagebox.showinfo("Selection Required", "Please select a user from the table first.", parent=self.app.root)
             return None
         vals = self.users_tree.item(sel[0], "values")
         return {"user_id": int(vals[0]), "username": vals[1], "role": vals[2], "is_active": vals[3] == "Active"}
 
     def on_create_user(self):
         p = get_palette()
-        dlg = tk.Toplevel(self); dlg.title("Create New User"); dlg.transient(self); dlg.grab_set(); dlg.configure(bg=p["bg"])
+        dlg = tk.Toplevel(self.app.root); dlg.title("Create New User"); dlg.transient(self.app.root); dlg.grab_set(); dlg.configure(bg=p["bg"])
         card = tk.Frame(dlg, bg=p["surface"], padx=16, pady=16, highlightbackground=p["border"], highlightthickness=1)
         card.pack(fill="both", expand=True, padx=12, pady=12)
 
@@ -137,7 +157,7 @@ class AdminPage(tk.Frame):
         u_ent = ttk.Entry(card, width=24); u_ent.grid(row=0, column=1, pady=4); u_ent.focus_set()
 
         tk.Label(card, text="Password:", bg=p["surface"], fg=p["text"], font=("Segoe UI", 9, "bold")).grid(row=1, column=0, sticky="w", pady=4)
-        p_ent = ttk.Entry(card, width=24, show="•"); p_ent.grid(row=1, column=1, pady=4)
+        p_ent = ttk.Entry(card, width=24, show="*"); p_ent.grid(row=1, column=1, pady=4)
 
         tk.Label(card, text="Role:", bg=p["surface"], fg=p["text"], font=("Segoe UI", 9, "bold")).grid(row=2, column=0, sticky="w", pady=4)
         roles = ["user", "admin"] if self.app.role == "super_admin" else ["user"]
@@ -148,10 +168,10 @@ class AdminPage(tk.Frame):
             uname, pwd, role = u_ent.get().strip(), p_ent.get(), r_combo.get()
             if not uname or not pwd: messagebox.showwarning("Incomplete", "Username and password cannot be empty.", parent=dlg); return
             con = auth.get_connection(USERS_DB)
-            ok = auth.register(con, uname, pwd, role=role, created_by=self.app.user_id)
-            con.close()
+            try: ok = auth.register(con, uname, pwd, role=role, created_by=self.app.user_id)
+            finally: con.close()
             if ok:
-                dlg.destroy(); self.load_users(); messagebox.showinfo("Success", f"User '{uname}' ({role}) created successfully.", parent=self)
+                dlg.destroy(); self.load_users(); messagebox.showinfo("Success", f"User '{uname}' ({role}) created successfully.", parent=self.app.root)
             else: messagebox.showerror("Error", f"Failed to create user '{uname}'. Username may already exist.", parent=dlg)
 
         btn_box = tk.Frame(card, bg=p["surface"])
@@ -163,9 +183,9 @@ class AdminPage(tk.Frame):
         u = self._get_selected_user()
         if not u: return
         if self.app.role != "super_admin" and u["role"] in ("admin", "super_admin"):
-            messagebox.showwarning("Permission Denied", "Only Super Admins can modify Admin or Super Admin roles.", parent=self); return
+            messagebox.showwarning("Permission Denied", "Only Super Admins can modify Admin or Super Admin roles.", parent=self.app.root); return
         p = get_palette()
-        dlg = tk.Toplevel(self); dlg.title(f"Change Role: {u['username']}"); dlg.transient(self); dlg.grab_set(); dlg.configure(bg=p["bg"])
+        dlg = tk.Toplevel(self.app.root); dlg.title(f"Change Role: {u['username']}"); dlg.transient(self.app.root); dlg.grab_set(); dlg.configure(bg=p["bg"])
         card = tk.Frame(dlg, bg=p["surface"], padx=16, pady=16, highlightbackground=p["border"], highlightthickness=1)
         card.pack(fill="both", expand=True, padx=12, pady=12)
 
@@ -181,11 +201,11 @@ class AdminPage(tk.Frame):
             new_r, reason = r_combo.get(), reason_ent.get().strip()
             if new_r == u["role"]: messagebox.showinfo("No Change", "Selected role is identical to current role.", parent=dlg); return
             con = auth.get_connection(USERS_DB)
-            ok = auth.change_role(con, u["user_id"], new_r, self.app.user_id, reason=reason)
-            con.close()
+            try: ok = auth.change_role(con, u["user_id"], new_r, self.app.user_id, reason=reason)
+            finally: con.close()
             if ok:
                 dlg.destroy(); self.load_users(); self.load_audit_log()
-                messagebox.showinfo("Success", f"Updated {u['username']} to '{new_r}'.", parent=self)
+                messagebox.showinfo("Success", f"Updated {u['username']} to '{new_r}'.", parent=self.app.root)
             else: messagebox.showerror("Error", "Failed to update role.", parent=dlg)
 
         btn_box = tk.Frame(card, bg=p["surface"])
@@ -197,27 +217,27 @@ class AdminPage(tk.Frame):
         u = self._get_selected_user()
         if not u: return
         if u["user_id"] == self.app.user_id:
-            messagebox.showwarning("Invalid Action", "You cannot deactivate your own account.", parent=self); return
+            messagebox.showwarning("Invalid Action", "You cannot deactivate your own account.", parent=self.app.root); return
         if self.app.role != "super_admin" and u["role"] in ("admin", "super_admin"):
-            messagebox.showwarning("Permission Denied", "Only Super Admins can alter Admin status.", parent=self); return
+            messagebox.showwarning("Permission Denied", "Only Super Admins can alter Admin status.", parent=self.app.root); return
         new_status = not u["is_active"]
         action = "activate" if new_status else "deactivate"
-        if not messagebox.askyesno("Confirm Status Change", f"Are you sure you want to {action} account '{u['username']}'?", parent=self): return
+        if not messagebox.askyesno("Confirm Status Change", f"Are you sure you want to {action} account '{u['username']}'?", parent=self.app.root): return
         con = auth.get_connection(USERS_DB)
-        auth.set_active(con, u["user_id"], new_status)
-        con.close()
+        try: auth.set_active(con, u["user_id"], new_status)
+        finally: con.close()
         self.load_users()
 
     def on_reset_password(self):
         u = self._get_selected_user()
         if not u: return
-        new_pwd = simpledialog.askstring("Reset Password", f"Enter new password for '{u['username']}':", show="•", parent=self)
+        new_pwd = simpledialog.askstring("Reset Password", f"Enter new password for '{u['username']}':", show="*", parent=self.app.root)
         if not new_pwd: return
         con = auth.get_connection(USERS_DB)
-        ok = auth.change_password(con, u["username"], new_pwd)
-        con.close()
-        if ok: messagebox.showinfo("Success", f"Password for '{u['username']}' updated.", parent=self)
-        else: messagebox.showerror("Error", "Failed to reset password.", parent=self)
+        try: ok = auth.change_password(con, u["username"], new_pwd)
+        finally: con.close()
+        if ok: messagebox.showinfo("Success", f"Password for '{u['username']}' updated.", parent=self.app.root)
+        else: messagebox.showerror("Error", "Failed to reset password.", parent=self.app.root)
 
     def apply_theme(self, p):
         self.config(bg=p["surface"])

@@ -183,23 +183,30 @@ class MainWindow:
         if elapsed_ms is not None: self.status_time.config(text=f"{elapsed_ms:.1f} ms")
 
     def open_tab(self, kind, name):
-        if kind == "table":
-            key, title, fn = f"table:{name}", name, lambda: TablePage(self.tabs.content_frame, self, name)
-        elif kind == "result":
-            key, title, fn = "result", "Result", lambda: ResultPage(self.tabs.content_frame, self)
-        elif kind == "history":
-            key = f"history:{name or 'db'}"
-            title = f"History: {name}" if name else "History: Database"
-            ret = self.tabs.active_key if self.tabs.active_key != key else None
-            fn = lambda: HistoryPage(self.tabs.content_frame, self, table_name=name, return_tab=ret)
-        elif kind == "memory":
-            key, title, fn = "memory", "Memory", lambda: MemoryPage(self.tabs.content_frame, self)
-        elif kind == "admin":
-            from gui.admin_page import AdminPage
-            key, title, fn = "admin", "Admin Panel", lambda: AdminPage(self.tabs.content_frame, self)
-        else: return
-        if key not in self.tabs.tabs: self.tabs.add_tab(key, kind, title, fn())
-        else: self.tabs.select(key)
+        try:
+            if kind == "table":
+                key, title, fn = f"table:{name}", name, lambda: TablePage(self.tabs.content_frame, self, name)
+            elif kind == "result":
+                key, title, fn = "result", "Result", lambda: ResultPage(self.tabs.content_frame, self)
+            elif kind == "history":
+                key = f"history:{name or 'db'}"
+                title = f"History: {name}" if name else "History: Database"
+                ret = self.tabs.active_key if self.tabs.active_key != key else None
+                fn = lambda: HistoryPage(self.tabs.content_frame, self, table_name=name, return_tab=ret)
+            elif kind == "memory":
+                key, title, fn = "memory", "Memory", lambda: MemoryPage(self.tabs.content_frame, self)
+            elif kind == "admin":
+                from gui.admin_page import AdminPage
+                key, title, fn = "admin", "Admin Panel", lambda: AdminPage(self.tabs.content_frame, self)
+            else: return
+            if key not in self.tabs.tabs: self.tabs.add_tab(key, kind, title, fn())
+            else: self.tabs.select(key)
+        except Exception as e:
+            try:
+                with open("crash.log", "a", encoding="utf-8") as f:
+                    f.write(f"open_tab({kind}) error: {e}\n")
+            except Exception: pass
+            messagebox.showerror("Error Opening Tab", f"Failed to open {kind} tab:\n{e}", parent=self.root)
 
     def show_select_result(self, result):
         self.open_tab("result", None)

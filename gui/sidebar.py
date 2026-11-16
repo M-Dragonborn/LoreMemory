@@ -61,20 +61,6 @@ class Sidebar(tk.Frame):
         self.new_tbl_btn.pack(side="right")
         self.new_tbl_btn.bind("<Button-1>", lambda e: self.open_new_table_dialog())
 
-        # Tables list area enclosed with soft 1px border
-        self.list_frame = tk.Frame(self, bg=p["bg"], padx=3, pady=1)
-        self.list_frame.pack(fill="both", expand=True)
-
-        self.tree_border = tk.Frame(self.list_frame, bg=p["surface"], highlightbackground=p["border"], highlightthickness=1)
-        self.tree_border.pack(fill="both", expand=True)
-
-        self.tree = ttk.Treeview(self.tree_border, columns=("name", "count"), show="", selectmode="browse")
-        self.tree.column("name", width=140, anchor="w")
-        self.tree.column("count", width=60, anchor="e")
-        self.tree.pack(side="left", fill="both", expand=True)
-
-        self.tree.bind("<<TreeviewSelect>>", self.on_table_selected)
-
         # Bottom Bar: User, Logout, Dark Mode toggle
         self.bottom_frame = tk.Frame(
             self, bg=p["panel"], padx=8, pady=6,
@@ -89,9 +75,23 @@ class Sidebar(tk.Frame):
             self.admin_btn = tk.Button(
                 self.admin_frame, text="⚙ Admin Panel", font=("Segoe UI", 9, "bold"),
                 bg=p["surface"], fg=p["accent"], relief="flat", cursor="hand2", pady=2,
-                command=lambda: self.app.open_tab("admin", None)
+                command=self._on_admin_click
             )
             self.admin_btn.pack(fill="x")
+
+        # Tables list area enclosed with soft 1px border
+        self.list_frame = tk.Frame(self, bg=p["bg"], padx=3, pady=1)
+        self.list_frame.pack(fill="both", expand=True)
+
+        self.tree_border = tk.Frame(self.list_frame, bg=p["surface"], highlightbackground=p["border"], highlightthickness=1)
+        self.tree_border.pack(fill="both", expand=True)
+
+        self.tree = ttk.Treeview(self.tree_border, columns=("name", "count"), show="", selectmode="browse")
+        self.tree.column("name", width=140, anchor="w")
+        self.tree.column("count", width=60, anchor="e")
+        self.tree.pack(side="left", fill="both", expand=True)
+
+        self.tree.bind("<<TreeviewSelect>>", self.on_table_selected)
 
         u_txt = f"{self.app.username} ({role})" if role != "user" else self.app.username
         self.user_lbl = tk.Label(self.bottom_frame, text=u_txt, bg=p["panel"], fg=p["text"], font=("Segoe UI", 9, "bold"))
@@ -183,3 +183,14 @@ class Sidebar(tk.Frame):
 
     def toggle_collapse(self):
         self.app.toggle_sidebar()
+
+    def _on_admin_click(self):
+        try:
+            self.app.open_tab("admin", None)
+        except Exception as e:
+            try:
+                with open("crash.log", "a", encoding="utf-8") as f:
+                    f.write(f"admin_btn error: {e}\n")
+            except Exception: pass
+            messagebox.showerror("Admin Error", str(e), parent=self.app.root)
+

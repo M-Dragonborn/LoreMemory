@@ -77,6 +77,13 @@ def test_gui_full_smoke():
         app.tabs.close_tab("admin")
         assert "admin" not in app.tabs.tabs
 
+        # Test clicking sidebar admin button
+        assert hasattr(app.sidebar, "admin_btn")
+        app.sidebar.admin_btn.invoke()
+        assert "admin" in app.tabs.tabs
+        app.tabs.close_tab("admin")
+        assert "admin" not in app.tabs.tabs
+
         # Close tabs
         app.tabs.close_tab("history:students")
         assert "history:students" not in app.tabs.tabs
