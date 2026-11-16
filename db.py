@@ -170,70 +170,59 @@ class Database:
 
     def get_columns(self, table):
         with self.lock:
-            if not self.con:
-                return []
-            cur = self.con.execute(f'PRAGMA table_info("{table}")')
-            cols = []
-            for r in cur.fetchall():
-                cols.append({
-                    "name": r[1], "type": (r[2] or "TEXT").upper(),
-                    "notnull": bool(r[3]), "default": r[4], "pk": bool(r[5]), "fk": None
-                })
-            fk_cur = self.con.execute(f'PRAGMA foreign_key_list("{table}")')
-            for fk in fk_cur.fetchall():
-                from_c, to_t, to_c = fk[3], fk[2], fk[4]
-                for c in cols:
-                    if c["name"] == from_c:
-                        c["fk"] = f"{to_t}({to_c})"
-            return cols
+            if not self.con: return []
+            try:
+                safe_t = str(table).replace('"', '""')
+                cur = self.con.execute(f'PRAGMA table_info("{safe_t}")')
+                cols = [{"name": r[1], "type": (r[2] or "TEXT").upper(), "notnull": bool(r[3]), "default": r[4], "pk": bool(r[5]), "fk": None} for r in cur.fetchall()]
+                fk_cur = self.con.execute(f'PRAGMA foreign_key_list("{safe_t}")')
+                for fk in fk_cur.fetchall():
+                    for c in cols:
+                        if c["name"] == fk[3]: c["fk"] = f"{fk[2]}({fk[4]})"
+                return cols
+            except Exception: return []
 
     def get_table_info(self):
         with self.lock:
             info = []
             for t in self.get_tables():
                 cols = self.get_columns(t)
-                try:
-                    cnt = self.con.execute(f'SELECT COUNT(*) FROM "{t}"').fetchone()[0]
-                except Exception:
-                    cnt = 0
+                safe_t = str(t).replace('"', '""')
+                try: cnt = self.con.execute(f'SELECT COUNT(*) FROM "{safe_t}"').fetchone()[0]
+                except Exception: cnt = 0
                 info.append({"name": t, "columns": cols, "row_count": cnt})
             return info
 
     def get_rows(self, table, page, page_size=100, order_by=None, descending=False, search=""):
         with self.lock:
-            if not self.con:
-                return [], [], 0
-            cols = self.get_columns(table)
-            col_names = [c["name"] for c in cols]
-            has_pk = any(c["pk"] for c in cols)
-            select_cols = [f'"{c}"' for c in col_names]
-            if not has_pk:
-                select_cols.insert(0, "rowid AS _rowid")
-                col_names.insert(0, "_rowid")
-
-            where_parts = []
-            params = []
-            if search and cols:
-                sub = " OR ".join([f'CAST("{c["name"]}" AS TEXT) LIKE ?' for c in cols])
-                where_parts.append(f"({sub})")
-                params.extend([f"%{search}%"] * len(cols))
-
-            where_str = f" WHERE {' AND '.join(where_parts)}" if where_parts else ""
-
-            count_sql = f'SELECT COUNT(*) FROM "{table}"{where_str}'
-            total_count = self.con.execute(count_sql, params).fetchone()[0]
-
-            order_str = ""
-            if order_by and order_by in col_names:
-                direction = "DESC" if descending else "ASC"
-                order_str = f' ORDER BY "{order_by}" {direction}'
-
-            offset = max(0, (page - 1) * page_size)
-            query_sql = f'SELECT {", ".join(select_cols)} FROM "{table}"{where_str}{order_str} LIMIT ? OFFSET ?'
-            q_params = list(params) + [page_size, offset]
-            cur = self.con.execute(query_sql, q_params)
-            rows = cur.fetchall()
-            return col_names, rows, total_count
+            if not self.con: return [], [], 0
+            try:
+                def q(s): return str(s).replace('"', '""')
+                safe_t = q(table)
+                cols = self.get_columns(table)
+                col_names = [c["name"] for c in cols]
+                has_pk = any(c["pk"] for c in cols)
+                select_cols = [f'"{q(c)}"' for c in col_names]
+                if not has_pk:
+                    select_cols.insert(0, "rowid AS _rowid")
+                    col_names.insert(0, "_rowid")
+                where_parts, params = [], []
+                if search and cols:
+                    sub = " OR ".join([f'CAST("{q(c["name"])}" AS TEXT) LIKE ?' for c in cols])
+                    where_parts.append(f"({sub})")
+                    params.extend([f"%{search}%"] * len(cols))
+                where_str = f" WHERE {' AND '.join(where_parts)}" if where_parts else ""
+                count_sql = f'SELECT COUNT(*) FROM "{safe_t}"{where_str}'
+                total_count = self.con.execute(count_sql, params).fetchone()[0]
+                order_str = ""
+                if order_by and order_by in col_names:
+                    direction = "DESC" if descending else "ASC"
+                    order_str = f' ORDER BY "{q(order_by)}" {direction}'
+                offset = max(0, (page - 1) * page_size)
+                query_sql = f'SELECT {", ".join(select_cols)} FROM "{safe_t}"{where_str}{order_str} LIMIT ? OFFSET ?'
+                cur = self.con.execute(query_sql, list(params) + [page_size, offset])
+                return col_names, cur.fetchall(), total_count
+            except Exception: return [], [], 0
 
     def insert_row(self, table, data_dict):
         cols = list(data_dict.keys())

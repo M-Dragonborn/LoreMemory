@@ -116,42 +116,36 @@ class MainWindow:
         self.sidebar.apply_theme(p); self.tabs.apply_theme(p); self.console.apply_theme(p)
 
     def on_open_database(self):
-        self.root.after(20, self._do_open_database)
+        self.root.after(100, self._do_open_database)
 
     def _do_open_database(self):
         try:
             d = os.path.dirname(self.db.path) if self.db.path else os.getcwd()
-            p = filedialog.askopenfilename(
-                parent=self.root, title="Open SQLite Database", initialdir=d,
-                filetypes=[("SQLite Database", "*.db"), ("SQLite Database", "*.sqlite"), ("All Files", "*.*")]
-            )
+            p = filedialog.askopenfilename(parent=self.root, title="Open SQLite Database", initialdir=d,
+                                           filetypes=[("SQLite Database", "*.db"), ("SQLite Database", "*.sqlite"), ("All Files", "*.*")])
             if p and self.check_pending_transactions("Open Database"):
+                self.close_table_tabs()
                 if self.db.open(p):
-                    self.close_table_tabs(); self.sidebar.update_db_name(p)
-                    self.status_file.config(text=os.path.basename(p))
+                    self.sidebar.update_db_name(p); self.status_file.config(text=os.path.basename(p))
                     self.refresh_tables(); self.update_pending()
                 else: messagebox.showerror("Error", f"Failed to open database:\n{p}", parent=self.root)
-        except Exception as e:
-            messagebox.showerror("Database Error", f"Could not open database:\n{e}", parent=self.root)
+        except Exception as e: messagebox.showerror("Database Error", f"Could not open database:\n{e}", parent=self.root)
 
     def on_new_database(self):
-        self.root.after(20, self._do_new_database)
+        self.root.after(100, self._do_new_database)
 
     def _do_new_database(self):
         try:
             d = os.path.dirname(self.db.path) if self.db.path else os.getcwd()
-            p = filedialog.asksaveasfilename(
-                parent=self.root, title="New SQLite Database", initialdir=d,
-                defaultextension=".db", filetypes=[("SQLite Database", "*.db"), ("All Files", "*.*")]
-            )
+            p = filedialog.asksaveasfilename(parent=self.root, title="New SQLite Database", initialdir=d,
+                                             defaultextension=".db", filetypes=[("SQLite Database", "*.db"), ("All Files", "*.*")])
             if p and self.check_pending_transactions("New Database"):
+                self.close_table_tabs()
                 if self.db.open(p, create=True):
-                    self.close_table_tabs(); self.sidebar.update_db_name(p)
-                    self.status_file.config(text=os.path.basename(p))
+                    self.sidebar.update_db_name(p); self.status_file.config(text=os.path.basename(p))
                     self.refresh_tables(); self.update_pending()
                 else: messagebox.showerror("Error", f"Failed to create database:\n{p}", parent=self.root)
-        except Exception as e:
-            messagebox.showerror("Database Error", f"Could not create database:\n{e}", parent=self.root)
+        except Exception as e: messagebox.showerror("Database Error", f"Could not create database:\n{e}", parent=self.root)
 
     def on_close_database(self):
         if self.check_pending_transactions("Close Database"):
@@ -160,12 +154,24 @@ class MainWindow:
             self.refresh_tables(); self.update_pending()
 
     def close_table_tabs(self):
+        self.sidebar.selected_table, self.active_table = None, None
         for k in list(self.tabs.tabs.keys()):
-            if k.startswith("table:") or k.startswith("history:"): self.tabs.close_tab(k)
+            if k.startswith("table:") or k.startswith("history:"):
+                info = self.tabs.tabs.pop(k, None)
+                if info:
+                    if hasattr(info["page"], "on_close"):
+                        try: info["page"].on_close()
+                        except Exception: pass
+                    info["header"].destroy(); info["page"].destroy()
+        if self.tabs.tabs: self.tabs.select(list(self.tabs.tabs.keys())[-1])
+        else:
+            self.tabs.active_key = None
+            p = get_palette()
+            self.tabs.empty_label.config(bg=p["surface"], fg=p["muted"])
+            self.tabs.empty_label.place(relx=0.5, rely=0.5, anchor="center")
 
     def refresh_tables(self):
-        if not self.db.con:
-            self.sidebar.refresh_tables([]); return
+        if not self.db.con: self.sidebar.refresh_tables([]); return
         try: self.sidebar.refresh_tables(self.db.get_table_info())
         except Exception: self.sidebar.refresh_tables([])
 
@@ -192,10 +198,8 @@ class MainWindow:
             from gui.admin_page import AdminPage
             key, title, fn = "admin", "Admin Panel", lambda: AdminPage(self.tabs.content_frame, self)
         else: return
-        if key not in self.tabs.tabs:
-            self.tabs.add_tab(key, kind, title, fn())
-        else:
-            self.tabs.select(key)
+        if key not in self.tabs.tabs: self.tabs.add_tab(key, kind, title, fn())
+        else: self.tabs.select(key)
 
     def show_select_result(self, result):
         self.open_tab("result", None)
@@ -206,31 +210,23 @@ class MainWindow:
             tname = key.split(":", 1)[1]
             self.active_table = tname
             self.sidebar.select_table_by_name(tname)
-        else:
-            self.active_table = None
+        else: self.active_table = None
 
     def on_tab_closed(self, key, kind):
         if kind == "table":
             tname = key.split(":", 1)[1]
             h_key = f"history:{tname}"
-            if h_key in self.tabs.tabs:
-                self.tabs.close_tab(h_key)
+            if h_key in self.tabs.tabs: self.tabs.close_tab(h_key)
 
     def check_pending_transactions(self, action_name="Exit"):
         if self.running_thread and self.running_thread.is_alive():
-            ans = messagebox.askyesno("Running Query", "Something is still running. Close anyway?", parent=self.root)
-            if not ans:
-                return False
+            if not messagebox.askyesno("Running Query", "Something is still running. Close anyway?", parent=self.root): return False
             self.running_thread.join(timeout=2.0)
-
         if self.db.has_pending:
             ans = messagebox.askyesnocancel("Uncommitted Changes", "You have uncommitted changes. Commit before proceeding?", parent=self.root)
-            if ans is None:
-                return False
-            elif ans is True:
-                self.db.commit()
-            else:
-                self.db.rollback()
+            if ans is None: return False
+            elif ans is True: self.db.commit()
+            else: self.db.rollback()
         return True
 
     def on_logout(self):

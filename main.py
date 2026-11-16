@@ -25,13 +25,17 @@ def hide_windows_console_if_double_clicked():
         except Exception:
             pass
 
-def start_gui():
+def start_gui(initial_db=None):
     hide_windows_console_if_double_clicked()
 
     root = tk.Tk()
     def on_tk_exception(exc_type, exc_val, exc_tb):
         err = "".join(traceback.format_exception(exc_type, exc_val, exc_tb))
         print("Exception:", err, file=sys.stderr)
+        try:
+            with open("crash.log", "a", encoding="utf-8") as f:
+                f.write(err + "\n")
+        except Exception: pass
         try:
             messagebox.showerror("Unexpected Error", f"An error occurred:\n\n{err}", parent=root)
         except Exception:
@@ -52,14 +56,25 @@ def start_gui():
     def on_login_success(user_id, username):
         for w in root.winfo_children():
             w.destroy()
-        MainWindow(root, user_id, username, on_logout=show_login)
+        app = MainWindow(root, user_id, username, on_logout=show_login)
+        if initial_db and os.path.exists(initial_db):
+            def load_init():
+                if app.db.open(initial_db):
+                    app.sidebar.update_db_name(initial_db)
+                    app.status_file.config(text=os.path.basename(initial_db))
+                    app.refresh_tables(); app.update_pending()
+            root.after(100, load_init)
 
     show_login()
     root.mainloop()
 
 def main():
     if len(sys.argv) > 1:
-        sys.exit(cli.run(sys.argv[1:]))
+        first = sys.argv[1].lower()
+        if first in ("remember", "recall", "recent", "pending", "episode", "consolidate", "importance", "stats", "-h", "--help"):
+            sys.exit(cli.run(sys.argv[1:]))
+        else:
+            start_gui(initial_db=sys.argv[1])
     else:
         start_gui()
 

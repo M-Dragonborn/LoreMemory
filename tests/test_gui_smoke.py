@@ -117,3 +117,40 @@ def test_gui_full_smoke():
     app.memory.close()
     root.destroy()
 
+def test_database_switch_with_open_tabs(tmp_path):
+    import sqlite3
+    db1_path = str(tmp_path / "test1.db")
+    db2_path = str(tmp_path / "test2.db")
+
+    with sqlite3.connect(db1_path) as c1:
+        c1.execute("CREATE TABLE apples (id INTEGER PRIMARY KEY, variety TEXT)")
+        c1.execute("INSERT INTO apples VALUES (1, 'Fuji'), (2, 'Gala')")
+    with sqlite3.connect(db2_path) as c2:
+        c2.execute("CREATE TABLE oranges (id INTEGER PRIMARY KEY, count INTEGER)")
+        c2.execute("INSERT INTO oranges VALUES (1, 50)")
+
+    root = tk.Tk()
+    root.withdraw()
+    apply(root, "light")
+
+    app = MainWindow(root, user_id=1, username="admin")
+    # Load db1 and open apples tab
+    assert app.db.open(db1_path) is True
+    app.refresh_tables()
+    app.open_tab("table", "apples")
+    assert "table:apples" in app.tabs.tabs
+
+    # Now simulate opening db2 without crashing
+    app.close_table_tabs()
+    assert "table:apples" not in app.tabs.tabs
+    assert app.db.open(db2_path) is True
+    app.refresh_tables()
+    app.open_tab("table", "oranges")
+    assert "table:oranges" in app.tabs.tabs
+
+    app.db.close()
+    app.history.close()
+    app.memory.close()
+    root.destroy()
+
+
