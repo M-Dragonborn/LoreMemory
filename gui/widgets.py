@@ -34,6 +34,7 @@ class TreeGrid:
             tree.configure(xscrollcommand=self._on_xscroll)
         tree.bind("<Configure>", self._on_configure, add="+")
         tree.bind("<ButtonRelease-1>", lambda e: self.schedule_update(20), add="+")
+        tree.bind("<B1-Motion>", lambda e: self.schedule_update(15), add="+")
 
     def _on_configure(self, e):
         if e.widget == self.tree:
@@ -65,7 +66,7 @@ class TreeGrid:
             for d in self.dividers: d.place_forget()
             return
         needed = max(0, len(cols) - 1)
-        color = self.get_color() if self.get_color else "#cbd5e1"
+        color = self.get_color() if self.get_color else "#000000"
         while len(self.dividers) < needed:
             d = tk.Frame(self.tree, bg=color, width=1)
             d.bind("<Button-1>", lambda e: self.tree.event_generate(
@@ -75,28 +76,22 @@ class TreeGrid:
         while len(self.dividers) > needed:
             self.dividers.pop().destroy()
 
-        children = self.tree.get_children()
-        if children:
-            for idx in range(needed):
-                bbox = self.tree.bbox(children[0], cols[idx])
-                div = self.dividers[idx]
-                if bbox and bbox[2] > 0:
-                    tx = bbox[0] + bbox[2] - 1
-                    if div.winfo_x() != tx or not div.winfo_ismapped():
-                        div.place(x=tx, y=0, relheight=1.0, width=1)
-                else:
-                    if div.winfo_ismapped(): div.place_forget()
-        else:
-            cur_x = 0
-            for idx in range(needed):
-                cur_x += self.tree.column(cols[idx], "width")
-                div = self.dividers[idx]
-                tx = cur_x - 1
+        tot_w = sum(self.tree.column(c, "width") for c in cols)
+        x_off = int(round(self.tree.xview()[0] * tot_w)) if tot_w else 0
+        cur_x = 1 - x_off
+        tree_w = self.tree.winfo_width()
+        for idx in range(needed):
+            cur_x += self.tree.column(cols[idx], "width")
+            tx = cur_x - 1
+            div = self.dividers[idx]
+            if 0 <= tx <= tree_w:
                 if div.winfo_x() != tx or not div.winfo_ismapped():
                     div.place(x=tx, y=0, relheight=1.0, width=1)
+            else:
+                if div.winfo_ismapped(): div.place_forget()
 
     def apply_theme(self, p):
-        color = p.get("grid_line", "#cbd5e1")
+        color = p.get("grid_line", "#000000")
         for d in self.dividers:
             d.config(bg=color)
         self.schedule_update()

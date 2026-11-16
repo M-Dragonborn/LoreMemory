@@ -17,8 +17,8 @@ LIGHT_PALETTE = {
     "success": "#16a34a",
     "select_bg": "#bae6fd",     # Vivid light blue selection
     "select_fg": "#0369a1",
-    "grid_alt": "#f1f5f9",      # Crisp subtle light tint for alternating rows (slate-100)
-    "grid_line": "#cbd5e1"      # Distinct 1px clean grid line (slate-300)
+    "grid_alt": "#f8fafc",      # Clean subtle light tint for alternating rows (slate-50)
+    "grid_line": "#000000"      # Clear cut straight black thin lines
 }
 
 DARK_PALETTE = {
@@ -38,7 +38,7 @@ DARK_PALETTE = {
     "select_bg": "#0284c7",
     "select_fg": "#ffffff",
     "grid_alt": "#1e293b",      # Subtle flipped dark contrast tint for alternating rows (slate-800)
-    "grid_line": "#334155"      # Clean flipped subtle 1px grid divider (slate-700)
+    "grid_line": "#ffffff"      # Clear cut straight white thin lines (flipped in dark mode)
 }
 
 CURRENT_THEME = "light"
@@ -158,6 +158,8 @@ def apply(root, mode="light"):
         background=p["panel"],
         foreground=p["text"],
         bordercolor=p["grid_line"],
+        darkcolor=p["grid_line"],
+        lightcolor=p["grid_line"],
         relief="solid",
         borderwidth=1
     )

@@ -69,10 +69,10 @@ class TablePage(tk.Frame):
             command=lambda: self.app.open_tab("history", self.table_name)
         ).pack(side="right", padx=2)
 
-        # Center Treeview with soft 1px border
+        # Center Treeview with clean 1px border
         self.grid_frame = tk.Frame(
             self, bg=p["surface"],
-            highlightbackground=p["border"], highlightthickness=1
+            highlightbackground=p.get("grid_line", p["border"]), highlightthickness=1
         )
         self.grid_frame.pack(fill="both", expand=True, padx=3, pady=1)
 
@@ -87,7 +87,7 @@ class TablePage(tk.Frame):
 
         self.grid_frame.rowconfigure(0, weight=1)
         self.grid_frame.columnconfigure(0, weight=1)
-        self.tree_grid = TreeGrid(self.tree, h_scroll, lambda: get_palette().get("grid_line", "#cbd5e1"))
+        self.tree_grid = TreeGrid(self.tree, h_scroll, lambda: get_palette().get("grid_line", "#000000"))
         self._apply_tag_styles(p)
 
     def _apply_tag_styles(self, p):
@@ -235,6 +235,6 @@ class TablePage(tk.Frame):
             if isinstance(child, tk.Label): child.config(bg=p["panel"], fg=p["text"] if child.cget("font") and "bold" in str(child.cget("font")) else p["muted"])
         self.bot_bar.config(bg=p["panel"], highlightbackground=p["border"])
         self.page_label.config(bg=p["panel"], fg=p["muted"])
-        self.grid_frame.config(bg=p["surface"], highlightbackground=p["border"])
+        self.grid_frame.config(bg=p["surface"], highlightbackground=p.get("grid_line", p["border"]))
         self.tree_grid.apply_theme(p)
         self._apply_tag_styles(p)

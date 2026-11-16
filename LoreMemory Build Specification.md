@@ -318,7 +318,7 @@ Instant tab switching: clicking a tab calls `select()` to raise the page frame w
 
 ### 9.6 Table page
 
-- A 2D grid (`TreeGrid` in `gui/widgets.py` wrapping `ttk.Treeview`) featuring 1px horizontal row borders (`Treeview.Row` `bordercolor`) and dynamic full-height vertical dividers (`ttk.Separator`, `relheight=1.0`). Line colors flip between subtle light (`#cbd5e1`) and dark (`#334155`).
+- A 2D grid (`TreeGrid` in `gui/widgets.py` wrapping `ttk.Treeview`) featuring 1px horizontal row borders (`Treeview.Row` `bordercolor`) and dynamic full-height vertical dividers (`ttk.Separator`, `relheight=1.0`). Line colors flip between clear-cut straight black (`#000000`) and white (`#ffffff`).
 - Dynamic column auto-sizing: column widths are calculated from the max text width of the header and first 15 sample rows using cached font measurement (clamped between 50px and 380px).
 - Debounced geometry updates: geometry adjustments are scheduled via `root.after_idle` to prevent layout thrashing and jitter during resizing.
 - 100 rows per page, Previous and Next buttons, and a label such as Page 2 of 7 (640 rows).

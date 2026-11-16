@@ -60,8 +60,8 @@ class AdminPage(tk.Frame):
         a_scroll = ttk.Scrollbar(self.audit_frame, orient="vertical", command=self.audit_tree.yview)
         self.audit_tree.configure(yscrollcommand=a_scroll.set)
         a_scroll.pack(side="right", fill="y"); self.audit_tree.pack(side="left", fill="both", expand=True)
-        self.users_grid = TreeGrid(self.users_tree, None, lambda: get_palette().get("grid_line", "#cbd5e1"))
-        self.audit_grid = TreeGrid(self.audit_tree, None, lambda: get_palette().get("grid_line", "#cbd5e1"))
+        self.users_grid = TreeGrid(self.users_tree, None, lambda: get_palette().get("grid_line", "#000000"))
+        self.audit_grid = TreeGrid(self.audit_tree, None, lambda: get_palette().get("grid_line", "#000000"))
         self._apply_tag_styles(p)
 
     def _apply_tag_styles(self, p):

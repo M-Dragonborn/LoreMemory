@@ -16,7 +16,7 @@ Built entirely on Python's standard library and Tkinter, it provides a fast, zer
 ### 🗄️ Desktop SQLite DBMS
 * **Registry-Editor Schema Navigation:** Hierarchical tree view styled like Windows Registry Editor (`🗄️ Database` → `📁 Tables` → `📄 table_name [count]` → nested `🔑` PK, `🔗` FK, `▫` columns) with double/single-click tab activation and idle action nodes.
 * **Full-Grid Table Viewer:** Complete 2D spreadsheet-like grid with full-height 1px vertical column boundary dividers (`TreeGrid`) and 1px horizontal row borders:
-  * Subtle 50–70% transparency lines flipped cleanly between Light (`#cbd5e1`) and Dark (`#334155`) modes.
+  * Clear-cut straight thin lines flipped cleanly between Light (`#000000` solid black) and Dark (`#ffffff` solid white) modes.
   * Distinct alternating row contrast (`#f1f5f9` / `#1e293b`).
   * Dynamic column width auto-sizing based on header text and sample data content (50px to 380px).
   * In-place cell editing, pagination, multi-column sorting, and debounced text filtering.

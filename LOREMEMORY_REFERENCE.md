@@ -274,7 +274,7 @@ Terminal interface for local LLMs:
 - **`theme.py`**:
   - `apply(root, mode)`: Configures ttk clam theme with Segoe UI and Consolas fonts. Palettes define background, surface, text, muted, accent (blue), border, gridline, alternating row, danger, and success colors.
   - Configures `Treeview.Row` with 1px solid bottom border (`bordercolor=p["grid_line"]`).
-  - Provides subtle grid palette: Light (`#cbd5e1` gridlines, `#f1f5f9` alt rows) / Dark (`#334155` gridlines, `#1e293b` alt rows).
+  - Provides high-contrast grid palette: Light (`#000000` clear-cut straight black thin lines, `#f8fafc` alt rows) / Dark (`#ffffff` clear-cut straight white thin lines, `#1e293b` alt rows).
   - Creates dedicated unbordered `Sidebar.Treeview` layout for Registry Editor style explorer.
 - **`widgets.py`**:
   - `TreeGrid`: Wraps `ttk.Treeview` with dynamic 2D vertical divider overlays (`ttk.Separator`, `relheight=1.0`), automatic horizontal scroll sync (`xscrollcommand`), debounced `<Configure>` geometry recalculation via `root.after_idle` to prevent layout thrashing/jitter, click-event pass-through, and `apply_theme()`.
