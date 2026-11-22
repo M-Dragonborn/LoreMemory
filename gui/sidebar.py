@@ -37,6 +37,8 @@ class Sidebar(tk.Frame):
         self.tables_hdr.pack(fill="x", side="top")
         self.tables_lbl = tk.Label(self.tables_hdr, text="OBJECT EXPLORER", bg=p["bg"], fg=p["muted"], font=("Segoe UI", 8, "bold"))
         self.tables_lbl.pack(side="left")
+        self.refresh_btn = ttk.Button(self.tables_hdr, text="⟳", width=2, command=self.app.refresh_database)
+        self.refresh_btn.pack(side="left", padx=(6, 0))
 
         self.new_tbl_btn = tk.Label(
             self.tables_hdr, text=" + New Table ", font=("Segoe UI", 9, "bold"),
@@ -138,8 +140,7 @@ class Sidebar(tk.Frame):
             tables_info = self.app.db.get_table_info() if (self.app.db and self.app.db.con) else []
         ch = self.tree.get_children()
         if ch: self.tree.delete(*ch)
-        self.table_items = {}
-        self.item_to_table = {}
+        self.table_items, self.item_to_table = {}, {}
 
         if not self.app.db or not self.app.db.con:
             root_id = self.tree.insert("", "end", text="  (No Database Loaded)", open=True, tags=("db_root",))

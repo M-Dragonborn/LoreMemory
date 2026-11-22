@@ -24,8 +24,7 @@ class MainWindow:
 
         self.role = "user"
         try:
-            import auth
-            con = auth.get_connection(USERS_DB)
+            import auth; con = auth.get_connection(USERS_DB)
             u = auth.get_user(con, self.user_id); con.close()
             if u: self.role = u.get("role", "user")
         except Exception: pass
@@ -33,7 +32,8 @@ class MainWindow:
         self.history = HistoryLog(HISTORY_DB, USERS_DB)
         self.memory = Memory(MEMORY_DB)
         self.db = Database(history=self.history, user_id=self.user_id)
-        self.active_table, self.running_thread, self.sidebar_collapsed = None, None, False
+        self.active_table, self.running_thread = None, None
+        self.sidebar_collapsed, self.console_collapsed = False, False
 
         self.setup_ui()
         self.root.protocol("WM_DELETE_WINDOW", self.on_close_requested)
@@ -45,18 +45,14 @@ class MainWindow:
         self.main_container = tk.Frame(self.root, bg=p["bg"])
         self.main_container.pack(fill="both", expand=True)
 
-        # Persistent Expand bar visible only when sidebar is shrunk
-        self.expand_bar = tk.Frame(
-            self.main_container, bg=p["panel"], width=28,
-            highlightbackground=p["border"], highlightthickness=1
-        )
-        self.expand_btn = tk.Button(
-            self.expand_bar, text="›", font=("Segoe UI", 11, "bold"),
-            relief="flat", bg=p["surface"], fg=p["text"],
-            activebackground=p["select_bg"], command=self.toggle_sidebar,
-            cursor="hand2", bd=0, padx=4, pady=6
-        )
+        # Persistent Expand bars visible when sidebar / console are shrunk
+        self.expand_bar = tk.Frame(self.main_container, bg=p["panel"], width=28, highlightbackground=p["border"], highlightthickness=1)
+        self.expand_btn = tk.Button(self.expand_bar, text="›", font=("Segoe UI", 11, "bold"), relief="flat", bg=p["surface"], fg=p["text"], activebackground=p["select_bg"], command=self.toggle_sidebar, cursor="hand2", bd=0, padx=4, pady=6)
         self.expand_btn.pack(side="top", pady=6)
+
+        self.expand_console_bar = tk.Frame(self.main_container, bg=p["panel"], width=28, highlightbackground=p["border"], highlightthickness=1)
+        self.expand_console_btn = tk.Button(self.expand_console_bar, text="‹", font=("Segoe UI", 11, "bold"), relief="flat", bg=p["surface"], fg=p["text"], activebackground=p["select_bg"], command=self.toggle_console, cursor="hand2", bd=0, padx=4, pady=6)
+        self.expand_console_btn.pack(side="top", pady=6)
 
         # Paned Window (2 : 5 : 3)
         self.paned = ttk.Panedwindow(self.main_container, orient="horizontal")
@@ -102,6 +98,16 @@ class MainWindow:
             self.expand_bar.pack(side="left", fill="y", before=self.paned)
             self.sidebar_collapsed = True
 
+    def toggle_console(self):
+        if self.console_collapsed:
+            self.expand_console_bar.pack_forget()
+            self.paned.add(self.console, weight=3)
+            self.console_collapsed = False
+        else:
+            self.paned.forget(self.console)
+            self.expand_console_bar.pack(side="right", fill="y", before=self.paned)
+            self.console_collapsed = True
+
     def toggle_theme(self):
         import gui.theme as theme
         new_theme = "light" if theme.CURRENT_THEME == "dark" else "dark"
@@ -109,20 +115,19 @@ class MainWindow:
         self.sidebar.theme_btn.config(text="☀" if new_theme == "dark" else "☾")
         self.main_container.config(bg=p["bg"])
         self.status_bar.config(bg=p["panel"], highlightbackground=p["border"])
-        self.expand_bar.config(bg=p["panel"], highlightbackground=p["border"])
-        self.expand_btn.config(bg=p["surface"], fg=p["text"])
+        for bar, btn in [(self.expand_bar, self.expand_btn), (self.expand_console_bar, self.expand_console_btn)]:
+            bar.config(bg=p["panel"], highlightbackground=p["border"]); btn.config(bg=p["surface"], fg=p["text"])
         for child in self.status_bar.winfo_children():
             if isinstance(child, tk.Label): child.config(bg=p["panel"], fg=p["text"])
         self.sidebar.apply_theme(p); self.tabs.apply_theme(p); self.console.apply_theme(p)
 
-    def on_open_database(self):
-        self.root.after(100, self._do_open_database)
+    def on_open_database(self): self.root.after(100, self._do_open_database)
 
     def _do_open_database(self):
         try:
             d = os.path.dirname(self.db.path) if self.db.path else os.getcwd()
             p = filedialog.askopenfilename(parent=self.root, title="Open SQLite Database", initialdir=d,
-                                           filetypes=[("SQLite Database", "*.db"), ("SQLite Database", "*.sqlite"), ("All Files", "*.*")])
+                                           filetypes=[("SQLite Database", "*.db;*.sqlite"), ("All Files", "*.*")])
             if p and self.check_pending_transactions("Open Database"):
                 self.close_table_tabs()
                 if self.db.open(p):
@@ -131,8 +136,7 @@ class MainWindow:
                 else: messagebox.showerror("Error", f"Failed to open database:\n{p}", parent=self.root)
         except Exception as e: messagebox.showerror("Database Error", f"Could not open database:\n{e}", parent=self.root)
 
-    def on_new_database(self):
-        self.root.after(100, self._do_new_database)
+    def on_new_database(self): self.root.after(100, self._do_new_database)
 
     def _do_new_database(self):
         try:
@@ -155,18 +159,16 @@ class MainWindow:
 
     def close_table_tabs(self):
         self.sidebar.selected_table, self.active_table = None, None
-        for k in list(self.tabs.tabs.keys()):
-            if k.startswith("table:") or k.startswith("history:"):
-                info = self.tabs.tabs.pop(k, None)
-                if info:
-                    if hasattr(info["page"], "on_close"):
-                        try: info["page"].on_close()
-                        except Exception: pass
-                    info["header"].destroy(); info["page"].destroy()
+        for k in [k for k in list(self.tabs.tabs.keys()) if k.startswith(("table:", "history:"))]:
+            info = self.tabs.tabs.pop(k, None)
+            if info:
+                if hasattr(info["page"], "on_close"):
+                    try: info["page"].on_close()
+                    except Exception: pass
+                info["header"].destroy(); info["page"].destroy()
         if self.tabs.tabs: self.tabs.select(list(self.tabs.tabs.keys())[-1])
         else:
-            self.tabs.active_key = None
-            p = get_palette()
+            self.tabs.active_key = None; p = get_palette()
             self.tabs.empty_label.config(bg=p["surface"], fg=p["muted"])
             self.tabs.empty_label.place(relx=0.5, rely=0.5, anchor="center")
 
@@ -175,8 +177,15 @@ class MainWindow:
         try: self.sidebar.refresh_tables(self.db.get_table_info())
         except Exception: self.sidebar.refresh_tables([])
 
-    def update_pending(self):
-        self.console.update_pending_status(self.db.has_pending)
+    def refresh_database(self):
+        self.refresh_tables(); self.update_pending()
+        for info in list(self.tabs.tabs.values()):
+            p = info.get("page")
+            if hasattr(p, "reload"):
+                try: p.reload()
+                except Exception: pass
+
+    def update_pending(self): self.console.update_pending_status(self.db.has_pending)
 
     def update_status(self, table_rows=None, elapsed_ms=None):
         if table_rows is not None: self.status_rows.config(text=f"{table_rows} rows")
@@ -184,17 +193,13 @@ class MainWindow:
 
     def open_tab(self, kind, name):
         try:
-            if kind == "table":
-                key, title, fn = f"table:{name}", name, lambda: TablePage(self.tabs.content_frame, self, name)
-            elif kind == "result":
-                key, title, fn = "result", "Result", lambda: ResultPage(self.tabs.content_frame, self)
+            if kind == "table": key, title, fn = f"table:{name}", name, lambda: TablePage(self.tabs.content_frame, self, name)
+            elif kind == "result": key, title, fn = "result", "Result", lambda: ResultPage(self.tabs.content_frame, self)
             elif kind == "history":
-                key = f"history:{name or 'db'}"
-                title = f"History: {name}" if name else "History: Database"
+                key, title = f"history:{name or 'db'}", f"History: {name}" if name else "History: Database"
                 ret = self.tabs.active_key if self.tabs.active_key != key else None
                 fn = lambda: HistoryPage(self.tabs.content_frame, self, table_name=name, return_tab=ret)
-            elif kind == "memory":
-                key, title, fn = "memory", "Memory", lambda: MemoryPage(self.tabs.content_frame, self)
+            elif kind == "memory": key, title, fn = "memory", "Memory", lambda: MemoryPage(self.tabs.content_frame, self)
             elif kind == "admin":
                 from gui.admin_page import AdminPage
                 key, title, fn = "admin", "Admin Panel", lambda: AdminPage(self.tabs.content_frame, self)
@@ -203,26 +208,22 @@ class MainWindow:
             else: self.tabs.select(key)
         except Exception as e:
             try:
-                with open("crash.log", "a", encoding="utf-8") as f:
-                    f.write(f"open_tab({kind}) error: {e}\n")
+                with open("crash.log", "a", encoding="utf-8") as f: f.write(f"open_tab({kind}) error: {e}\n")
             except Exception: pass
             messagebox.showerror("Error Opening Tab", f"Failed to open {kind} tab:\n{e}", parent=self.root)
 
     def show_select_result(self, result):
-        self.open_tab("result", None)
-        self.tabs.tabs["result"]["page"].display(result)
+        self.open_tab("result", None); self.tabs.tabs["result"]["page"].display(result)
 
     def on_tab_switched(self, key, kind, page):
         if kind == "table":
-            tname = key.split(":", 1)[1]
-            self.active_table = tname
-            self.sidebar.select_table_by_name(tname)
+            self.active_table = key.split(":", 1)[1]
+            self.sidebar.select_table_by_name(self.active_table)
         else: self.active_table = None
 
     def on_tab_closed(self, key, kind):
         if kind == "table":
-            tname = key.split(":", 1)[1]
-            h_key = f"history:{tname}"
+            h_key = f"history:{key.split(':', 1)[1]}"
             if h_key in self.tabs.tabs: self.tabs.close_tab(h_key)
 
     def check_pending_transactions(self, action_name="Exit"):
@@ -244,5 +245,4 @@ class MainWindow:
 
     def on_close_requested(self):
         if not self.check_pending_transactions("Exit"): return
-        self.db.close(); self.history.close(); self.memory.close()
-        self.root.destroy()
+        self.db.close(); self.history.close(); self.memory.close(); self.root.destroy()

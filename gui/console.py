@@ -57,8 +57,10 @@ class Console(tk.Frame):
         self.out_hdr.pack(fill="x", side="top")
         self.out_title = tk.Label(self.out_hdr, text="Console Output", font=("Segoe UI", 9, "bold"), fg=p["text"], bg=p["panel"])
         self.out_title.pack(side="left")
+        self.collapse_btn = ttk.Button(self.out_hdr, text="›", width=2, command=self.toggle_collapse)
+        self.collapse_btn.pack(side="right")
         self.out_hint = tk.Label(self.out_hdr, text="Execution Log", font=("Segoe UI", 8), fg=p["muted"], bg=p["panel"])
-        self.out_hint.pack(side="right")
+        self.out_hint.pack(side="right", padx=(0, 6))
 
         self.output = tk.Text(
             out_frame, wrap="word", font=("Consolas", 9),
@@ -240,3 +242,5 @@ class Console(tk.Frame):
         p = get_palette()
         txt, col = ("● Uncommitted changes", p["danger"]) if is_pending else ("No pending changes", p["muted"])
         self.pending_lbl.config(text=txt, fg=col)
+
+    def toggle_collapse(self): self.app.toggle_console()
