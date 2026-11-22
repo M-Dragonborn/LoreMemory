@@ -59,7 +59,9 @@ def register(con, username, password, role="user", created_by=None):
     if not username or not password: return False
     username = username.strip()
     if not username: return False
-    if role not in ("user", "admin", "super_admin"): role = "user"
+    cur_cnt = con.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+    if cur_cnt == 0 and role == "user": role = "super_admin"
+    elif role not in ("user", "admin", "super_admin"): role = "user"
     salt_hex = secrets.token_hex(16)
     p_hash = hash_password(password, salt_hex)
     try:
@@ -89,7 +91,11 @@ def get_connection(path=None):
     import sqlite3
     from config import USERS_DB
     p = str(path or USERS_DB)
+    parent = os.path.dirname(p)
+    if parent and not os.path.exists(parent):
+        os.makedirs(parent, exist_ok=True)
     con = sqlite3.connect(p, timeout=15.0)
+    con.execute("PRAGMA foreign_keys = ON")
     try: con.execute("PRAGMA journal_mode = WAL")
     except Exception: pass
     norm_p = os.path.normcase(os.path.abspath(p))
@@ -139,8 +145,12 @@ def list_users(con):
 
 def change_role(con, target_user_id, new_role, changed_by_id, reason=""):
     if new_role not in ("user", "admin", "super_admin"): return False
+    caller = get_user(con, changed_by_id) if changed_by_id else None
+    if caller and caller["role"] not in ("admin", "super_admin"): return False
     u = get_user(con, target_user_id)
     if not u or u["role"] == new_role: return False
+    if caller and caller["role"] == "admin" and (new_role == "super_admin" or u["role"] == "super_admin"):
+        return False
     old_role = u["role"]
     con.execute(
         "INSERT INTO role_audit_log (target_user, changed_by, old_role, new_role, reason) VALUES (?, ?, ?, ?, ?)",

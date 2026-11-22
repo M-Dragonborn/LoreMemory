@@ -28,18 +28,17 @@ Built entirely on Python's standard library and Tkinter, it provides a fast, zer
   * Debounced syntax highlighting.
   * Instant table and column autocomplete popup.
   * Multi-result grid presentation with dynamic column sizing.
-  * One-click query execution plan (`EXPLAIN QUERY PLAN`).
-  * Instant export to CSV and JSON.
-* **Visual Tools:** Interactive schema diagram visualizer and an integrated SQL scratchpad notebook.
+  * Transaction rollback and commit controls.
+  * Instant export to CSV in history view.
+* **Integrated Notebooks:** Dedicated Memory inspection tab and audit history notepad.
 
 ### 🧠 Mnemosyne AI Memory Engine & MCP
-* **3-Tier Memory Architecture:**
-  * **Working Memory:** Fast transient scratchpad for active context sessions.
+* **2-Tier Memory Architecture:**
+  * **Working Memory:** Fast transient scratchpad for active context sessions with configurable TTL expiration.
   * **Episodic Memory:** Consolidated timeline events and summaries with session clustering.
-  * **Semantic Memory:** Synthesized knowledge, entity relationships, and core preferences.
 * **Hybrid Retrieval Scoring:**
-  $$Score = w_{\text{vec}} \cdot Sim_{\text{vec}} + w_{\text{kw}} \cdot Sim_{\text{BM25}} + w_{\text{imp}} \cdot Imp + w_{\text{rec}} \cdot 2^{-\Delta t / t_{1/2}}$$
-* **Automatic Consolidation:** Background scheduling clusters stale working memories into condensed episodic memories.
+  $$Score = w_{\text{vec}} \cdot Sim_{\text{vec}} + w_{\text{kw}} \cdot Sim_{\text{kw}} + w_{\text{imp}} \cdot Imp + w_{\text{rec}} \cdot 2^{-\Delta t / t_{1/2}}$$
+* **Episodic Consolidation:** Clusters aged working memories into condensed episodic memories on demand via CLI, MCP, or script.
 * **Model Context Protocol (MCP) Server:** Standalone stdio JSON-RPC server (`mcp_server.py`) exposing `recall`, `remember`, `recent`, `consolidate`, and `query_sql` to external LLM agents (e.g. Nous Hermes, Claude, Cursor). See [Hermes MCP Guide](docs/HERMES_MCP_GUIDE.md).
 
 ### 🔒 Authentication, Roles & Audit History

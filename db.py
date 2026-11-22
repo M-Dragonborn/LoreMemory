@@ -5,33 +5,30 @@ import threading
 import time
 from config import ROW_LIMIT
 
+def _v_str(v):
+    return "NULL" if v is None else (str(v) if isinstance(v, (int, float)) else "'" + str(v).replace("'", "''") + "'")
+
 class Result:
-    def __init__(self, columns=None, rows=None, truncated=False, rowcount=0,
-                 tables=None, error=None, elapsed_ms=0.0):
+    def __init__(self, columns=None, rows=None, truncated=False, rowcount=0, tables=None, error=None, elapsed_ms=0.0):
         self.columns, self.rows, self.truncated = columns or [], rows or [], truncated
         self.rowcount, self.tables = rowcount, set(tables or [])
         self.error, self.elapsed_ms = error, elapsed_ms
 
 class Database:
     def __init__(self, history=None, user_id=1):
-        self.history = history
-        self.user_id = user_id
-        self.con = None
+        self.history, self.user_id, self.con = history, user_id, None
         self.path, self.lock, self._schema_cache = None, threading.RLock(), None
 
     def open(self, path, create=False):
         with self.lock:
             self.close()
-            self._schema_cache = None
             real_path = os.path.normcase(os.path.realpath(path))
             if not create and not os.path.exists(real_path): return False
             parent = os.path.dirname(real_path)
             if parent and not os.path.exists(parent): os.makedirs(parent, exist_ok=True)
             self.path = real_path
             try:
-                self.con = sqlite3.connect(
-                    self.path, isolation_level=None, check_same_thread=False, timeout=10.0
-                )
+                self.con = sqlite3.connect(self.path, isolation_level=None, check_same_thread=False, timeout=10.0)
                 for prg in ("foreign_keys = ON", "journal_mode = WAL", "synchronous = NORMAL",
                             "cache_size = -64000", "temp_store = MEMORY", "mmap_size = 268435456"):
                     try: self.con.execute(f"PRAGMA {prg}")
@@ -46,7 +43,7 @@ class Database:
             if self.con:
                 try: self.con.close()
                 except Exception: pass
-                self.con, self.path = None, None
+            self.con, self.path = None, None
 
     @property
     def has_pending(self):
@@ -56,33 +53,37 @@ class Database:
     def commit(self):
         with self.lock:
             if self.con and self.con.in_transaction: self.con.execute("COMMIT")
+            self._schema_cache = None
 
     def rollback(self):
         with self.lock:
             if self.con and self.con.in_transaction: self.con.execute("ROLLBACK")
+            self._schema_cache = None
 
     def is_dangerous(self, sql):
-        clean = re.sub(r"--.*$", "", sql, flags=re.MULTILINE).strip().upper()
-        if clean.startswith("DROP"):
+        clean = re.sub(r"--.*$", "", sql, flags=re.MULTILINE).strip()
+        u = clean.upper()
+        if u.startswith("DROP"):
             return "This DROP statement will permanently remove an object. Undoable until Commit."
-        if clean.startswith("DELETE") and " WHERE " not in clean:
+        if u.startswith("DELETE") and not re.search(r"\bWHERE\b", u):
             return "DELETE without WHERE will delete all rows. Undoable until Commit."
-        if clean.startswith("UPDATE") and " WHERE " not in clean:
+        if u.startswith("UPDATE") and not re.search(r"\bWHERE\b", u):
             return "UPDATE without WHERE will modify all rows. Undoable until Commit."
         return None
 
-    def run(self, sql, params=()):
+    def run(self, sql, params=(), display_sql=None):
         with self.lock:
-            if not self.con:
-                return Result(error="No open database")
+            if not self.con: return Result(error="No open database")
             clean = re.sub(r"--.*$", "", sql, flags=re.MULTILINE).strip()
             first_word = clean.split()[0].upper() if clean else ""
 
-            # Transaction rule: auto BEGIN for modifying statements
-            if first_word in {"INSERT", "UPDATE", "DELETE", "REPLACE", "CREATE", "DROP", "ALTER"}:
-                if first_word in {"CREATE", "DROP", "ALTER"}: self._schema_cache = None
-                if not self.con.in_transaction:
-                    self.con.execute("BEGIN")
+            # Transaction rule: auto BEGIN for modifying statements (including CTEs)
+            is_modifying = first_word in {"INSERT", "UPDATE", "DELETE", "REPLACE", "CREATE", "DROP", "ALTER"} or (
+                first_word == "WITH" and bool(re.search(r"\b(INSERT|UPDATE|DELETE|REPLACE)\b", clean, re.I))
+            )
+            if is_modifying:
+                if first_word in {"CREATE", "DROP", "ALTER"} or "CREATE" in clean.upper(): self._schema_cache = None
+                if not self.con.in_transaction: self.con.execute("BEGIN")
 
             touched = set()
             def authorizer(action, a1, a2, dbname, source):
@@ -121,8 +122,7 @@ class Database:
 
             # Logging rule: log immediately whether success or fail
             if self.history and self.path:
-                cmd_type = first_word if first_word else "SQL"
-                self.history.record(self.path, self.user_id, sql, 0 if error else 1,
+                self.history.record(self.path, self.user_id, display_sql or sql, 0 if error else 1,
                                     rowcount, error, touched)
 
             # Check table rename to update history
@@ -233,14 +233,17 @@ class Database:
 
     def insert_row(self, table, data_dict):
         cols = list(data_dict.keys())
-        p_str = ", ".join(["?"] * len(cols))
-        c_str = ", ".join([f'"{c}"' for c in cols])
-        return self.run(f'INSERT INTO "{table}" ({c_str}) VALUES ({p_str})', tuple(data_dict.values()))
+        p_str, c_str = ", ".join(["?"] * len(cols)), ", ".join([f'"{c}"' for c in cols])
+        disp = f'INSERT INTO "{table}" ({c_str}) VALUES ({", ".join(_v_str(v) for v in data_dict.values())})'
+        return self.run(f'INSERT INTO "{table}" ({c_str}) VALUES ({p_str})', tuple(data_dict.values()), display_sql=disp)
 
     def update_row(self, table, pk_col, pk_val, data_dict):
         set_parts = [f'"{c}" = ?' for c in data_dict.keys()]
         sql = f'UPDATE "{table}" SET {", ".join(set_parts)} WHERE "{pk_col}" = ?'
-        return self.run(sql, tuple(data_dict.values()) + (pk_val,))
+        disp_sets = [f'"{c}" = {_v_str(v)}' for c, v in data_dict.items()]
+        disp = f'UPDATE "{table}" SET {", ".join(disp_sets)} WHERE "{pk_col}" = {_v_str(pk_val)}'
+        return self.run(sql, tuple(data_dict.values()) + (pk_val,), display_sql=disp)
 
     def delete_row(self, table, pk_col, pk_val):
-        return self.run(f'DELETE FROM "{table}" WHERE "{pk_col}" = ?', (pk_val,))
+        disp = f'DELETE FROM "{table}" WHERE "{pk_col}" = {_v_str(pk_val)}'
+        return self.run(f'DELETE FROM "{table}" WHERE "{pk_col}" = ?', (pk_val,), display_sql=disp)

@@ -1,3 +1,4 @@
+import os
 import sys
 if sys.platform == "win32":
     sys.coinit_flags = 2  # COINIT_APARTMENTTHREADED for Windows COM dialogs
@@ -40,7 +41,8 @@ def start_gui(initial_db=None):
             try: print("Exception:", err, file=sys.stderr)
             except Exception: pass
         try:
-            messagebox.showerror("Unexpected Error", f"An error occurred:\n\n{err}", parent=root)
+            exc_desc = f"{exc_type.__name__}: {exc_val}" if exc_type else "An unexpected error occurred."
+            messagebox.showerror("Application Error", f"{exc_desc}\n\nDetails have been logged to crash.log.", parent=root)
         except Exception:
             pass
     root.report_callback_exception = on_tk_exception
@@ -74,11 +76,15 @@ def start_gui(initial_db=None):
 
 def main():
     if len(sys.argv) > 1:
-        first = sys.argv[1].lower()
-        if first in ("remember", "recall", "recent", "pending", "episode", "consolidate", "importance", "stats", "-h", "--help"):
+        first = sys.argv[1]
+        cli_cmds = ("remember", "recall", "recent", "pending", "episode", "consolidate", "importance", "stats", "-h", "--help")
+        if first.lower() in cli_cmds:
             sys.exit(cli.run(sys.argv[1:]))
+        elif first.endswith((".db", ".sqlite", ".sqlite3")) or os.path.exists(first) or first in ("--gui", "-g"):
+            start_gui(initial_db=first if first not in ("--gui", "-g") else None)
         else:
-            start_gui(initial_db=sys.argv[1])
+            print(f"Unknown command or database: '{first}'. Run with --help for terminal commands.", file=sys.stderr)
+            sys.exit(1)
     else:
         start_gui()
 
