@@ -207,7 +207,7 @@ class Console(tk.Frame):
             if not had_error:
                 if not sel_text: self.set_editor_text("")
                 if last_select_result: self.app.show_select_result(last_select_result)
-            self.app.refresh_tables(); self.update_pending()
+            self.app.refresh_tables(); self.app.update_pending()
 
         self.app.run_in_background(work, done)
 
@@ -219,7 +219,7 @@ class Console(tk.Frame):
     def on_rollback(self):
         self.app.db.rollback()
         self.print_output("ROLLBACK executed", tag="outcome")
-        self.app.refresh_tables(); self.update_pending()
+        self.app.refresh_tables(); self.app.update_pending()
 
     def on_table_history(self):
         self.app.open_tab("history", self.app.active_table)
