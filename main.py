@@ -2,6 +2,10 @@ import os
 import sys
 if sys.platform == "win32":
     sys.coinit_flags = 2  # COINIT_APARTMENTTHREADED for Windows COM dialogs
+    for p, sub in [("TCL_LIBRARY", ("Library", "lib", "tcl8.6")), ("TK_LIBRARY", ("Library", "lib", "tk8.6"))]:
+        if p not in os.environ:
+            d = os.path.join(sys.prefix, *sub)
+            if os.path.exists(d): os.environ[p] = d
 
 import tkinter as tk
 from tkinter import messagebox

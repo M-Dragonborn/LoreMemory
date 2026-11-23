@@ -161,7 +161,7 @@ class TablePage(tk.Frame):
         pk_cols = [c["name"] for c in meta_cols if c["pk"]]
         if pk_cols:
             return pk_cols[0], meta_cols
-        return "_rowid", meta_cols
+        return "_rowid_", meta_cols
 
     def on_add_row(self):
         meta_cols = self.app.db.get_columns(self.table_name)
@@ -190,7 +190,7 @@ class TablePage(tk.Frame):
         dlg = RowDialog(self, f"Edit Row - {self.table_name}", meta_cols, initial_values=data)
         self.wait_window(dlg)
         if dlg.result is not None:
-            update_data = {k: v for k, v in dlg.result.items() if k != "_rowid"}
+            update_data = {k: v for k, v in dlg.result.items() if k not in ("_rowid", "_rowid_")}
             res = self.app.db.update_row(self.table_name, pk_col, pk_val, update_data)
             if res.error:
                 messagebox.showerror("Update Error", res.error, parent=self)

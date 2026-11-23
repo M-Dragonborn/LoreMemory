@@ -5,6 +5,7 @@ import threading
 import time
 from config import ROW_LIMIT
 
+def _q(s): return str(s).replace('"', '""')
 def _v_str(v):
     return "NULL" if v is None else (str(v) if isinstance(v, (int, float)) else "'" + str(v).replace("'", "''") + "'")
 
@@ -61,7 +62,7 @@ class Database:
             self._schema_cache = None
 
     def is_dangerous(self, sql):
-        clean = re.sub(r"--.*$", "", sql, flags=re.MULTILINE).strip()
+        clean = re.sub(r"/\*.*?\*/", "", re.sub(r"--.*$", "", sql, flags=re.MULTILINE), flags=re.DOTALL).strip()
         u = clean.upper()
         if u.startswith("DROP"):
             return "This DROP statement will permanently remove an object. Undoable until Commit."
@@ -74,7 +75,7 @@ class Database:
     def run(self, sql, params=(), display_sql=None):
         with self.lock:
             if not self.con: return Result(error="No open database")
-            clean = re.sub(r"--.*$", "", sql, flags=re.MULTILINE).strip()
+            clean = re.sub(r"/\*.*?\*/", "", re.sub(r"--.*$", "", sql, flags=re.MULTILINE), flags=re.DOTALL).strip()
             first_word = clean.split()[0].upper() if clean else ""
 
             # Transaction rule: auto BEGIN for modifying statements (including CTEs)
@@ -204,18 +205,16 @@ class Database:
         with self.lock:
             if not self.con: return [], [], 0
             try:
-                def q(s): return str(s).replace('"', '""')
-                safe_t = q(table)
-                cols = self.get_columns(table)
+                safe_t, cols = _q(table), self.get_columns(table)
                 col_names = [c["name"] for c in cols]
                 has_pk = any(c["pk"] for c in cols)
-                select_cols = [f'"{q(c)}"' for c in col_names]
+                select_cols = [f'"{_q(c)}"' for c in col_names]
                 if not has_pk:
-                    select_cols.insert(0, "rowid AS _rowid")
-                    col_names.insert(0, "_rowid")
+                    select_cols.insert(0, "rowid AS _rowid_")
+                    col_names.insert(0, "_rowid_")
                 where_parts, params = [], []
                 if search and cols:
-                    sub = " OR ".join([f'CAST("{q(c["name"])}" AS TEXT) LIKE ?' for c in cols])
+                    sub = " OR ".join([f'CAST("{_q(c["name"])}" AS TEXT) LIKE ?' for c in cols])
                     where_parts.append(f"({sub})")
                     params.extend([f"%{search}%"] * len(cols))
                 where_str = f" WHERE {' AND '.join(where_parts)}" if where_parts else ""
@@ -224,7 +223,7 @@ class Database:
                 order_str = ""
                 if order_by and order_by in col_names:
                     direction = "DESC" if descending else "ASC"
-                    order_str = f' ORDER BY "{q(order_by)}" {direction}'
+                    order_str = f' ORDER BY "{_q(order_by)}" {direction}'
                 offset = max(0, (page - 1) * page_size)
                 query_sql = f'SELECT {", ".join(select_cols)} FROM "{safe_t}"{where_str}{order_str} LIMIT ? OFFSET ?'
                 cur = self.con.execute(query_sql, list(params) + [page_size, offset])
@@ -232,18 +231,18 @@ class Database:
             except Exception: return [], [], 0
 
     def insert_row(self, table, data_dict):
-        cols = list(data_dict.keys())
-        p_str, c_str = ", ".join(["?"] * len(cols)), ", ".join([f'"{c}"' for c in cols])
-        disp = f'INSERT INTO "{table}" ({c_str}) VALUES ({", ".join(_v_str(v) for v in data_dict.values())})'
-        return self.run(f'INSERT INTO "{table}" ({c_str}) VALUES ({p_str})', tuple(data_dict.values()), display_sql=disp)
+        st, cols = _q(table), list(data_dict.keys())
+        p_str, c_str = ", ".join(["?"] * len(cols)), ", ".join([f'"{_q(c)}"' for c in cols])
+        disp = f'INSERT INTO "{st}" ({c_str}) VALUES ({", ".join(_v_str(v) for v in data_dict.values())})'
+        return self.run(f'INSERT INTO "{st}" ({c_str}) VALUES ({p_str})', tuple(data_dict.values()), display_sql=disp)
 
     def update_row(self, table, pk_col, pk_val, data_dict):
-        set_parts = [f'"{c}" = ?' for c in data_dict.keys()]
-        sql = f'UPDATE "{table}" SET {", ".join(set_parts)} WHERE "{pk_col}" = ?'
-        disp_sets = [f'"{c}" = {_v_str(v)}' for c, v in data_dict.items()]
-        disp = f'UPDATE "{table}" SET {", ".join(disp_sets)} WHERE "{pk_col}" = {_v_str(pk_val)}'
-        return self.run(sql, tuple(data_dict.values()) + (pk_val,), display_sql=disp)
+        st, spk = _q(table), _q(pk_col)
+        set_parts = [f'"{_q(c)}" = ?' for c in data_dict.keys()]
+        disp_sets = [f'"{_q(c)}" = {_v_str(v)}' for c, v in data_dict.items()]
+        disp = f'UPDATE "{st}" SET {", ".join(disp_sets)} WHERE "{spk}" = {_v_str(pk_val)}'
+        return self.run(f'UPDATE "{st}" SET {", ".join(set_parts)} WHERE "{spk}" = ?', tuple(data_dict.values()) + (pk_val,), display_sql=disp)
 
     def delete_row(self, table, pk_col, pk_val):
-        disp = f'DELETE FROM "{table}" WHERE "{pk_col}" = {_v_str(pk_val)}'
-        return self.run(f'DELETE FROM "{table}" WHERE "{pk_col}" = ?', (pk_val,), display_sql=disp)
+        st, spk = _q(table), _q(pk_col)
+        return self.run(f'DELETE FROM "{st}" WHERE "{spk}" = ?', (pk_val,), display_sql=f'DELETE FROM "{st}" WHERE "{spk}" = {_v_str(pk_val)}')

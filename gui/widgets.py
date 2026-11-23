@@ -49,9 +49,12 @@ class TreeGrid:
         return self.v_divs
 
     def _pass_click(self, e):
-        self.tree.event_generate(
-            "<Button-1>", x=e.x_root - self.tree.winfo_rootx(), y=e.y_root - self.tree.winfo_rooty()
-        )
+        try:
+            self.tree.event_generate(
+                "<Button-1>", x=e.x_root - self.tree.winfo_rootx(), y=e.y_root - self.tree.winfo_rooty()
+            )
+        except Exception:
+            pass
 
     def _on_configure(self, e):
         if e.widget == self.tree:

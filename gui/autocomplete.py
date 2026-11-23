@@ -191,5 +191,11 @@ class AutocompletePopup:
             x = self.editor.winfo_rootx() + bbox[0]
             y = self.editor.winfo_rooty() + bbox[1] + bbox[3] + 2
             self.popup.geometry(f"220x150+{x}+{y}")
+        else:
+            try:
+                x = self.editor.winfo_rootx()
+                y = self.editor.winfo_rooty() + self.editor.winfo_height()
+                self.popup.geometry(f"220x150+{x}+{y}")
+            except Exception: pass
         self.popup.deiconify()
         self.popup.lift()

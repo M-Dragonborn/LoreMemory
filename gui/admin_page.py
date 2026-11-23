@@ -129,7 +129,16 @@ class AdminPage(tk.Frame):
 
     def on_create_user(self):
         p = get_palette()
-        dlg = tk.Toplevel(self.app.root); dlg.title("Create New User"); dlg.transient(self.app.root); dlg.grab_set(); dlg.configure(bg=p["bg"])
+        dlg = tk.Toplevel(self.app.root); dlg.title("Create New User"); dlg.transient(self.app.root); dlg.configure(bg=p["bg"])
+        try: dlg.grab_set()
+        except Exception: pass
+        dlg.update_idletasks()
+        try:
+            w, h = 380, 260
+            x = self.app.root.winfo_rootx() + max(0, (self.app.root.winfo_width() - w) // 2)
+            y = self.app.root.winfo_rooty() + max(0, (self.app.root.winfo_height() - h) // 2)
+            dlg.geometry(f"{w}x{h}+{x}+{y}")
+        except Exception: pass
         card = tk.Frame(dlg, bg=p["surface"], padx=16, pady=16, highlightbackground=p["border"], highlightthickness=1); card.pack(fill="both", expand=True, padx=12, pady=12)
 
         tk.Label(card, text="Username:", bg=p["surface"], fg=p["text"], font=("Segoe UI", 9, "bold")).grid(row=0, column=0, sticky="w", pady=4)
@@ -160,7 +169,16 @@ class AdminPage(tk.Frame):
         if self.app.role != "super_admin" and u["role"] in ("admin", "super_admin"):
             messagebox.showwarning("Permission Denied", "Only Super Admins can modify Admin or Super Admin roles.", parent=self.app.root); return
         p = get_palette()
-        dlg = tk.Toplevel(self.app.root); dlg.title(f"Change Role: {u['username']}"); dlg.transient(self.app.root); dlg.grab_set(); dlg.configure(bg=p["bg"])
+        dlg = tk.Toplevel(self.app.root); dlg.title(f"Change Role: {u['username']}"); dlg.transient(self.app.root); dlg.configure(bg=p["bg"])
+        try: dlg.grab_set()
+        except Exception: pass
+        dlg.update_idletasks()
+        try:
+            w, h = 380, 240
+            x = self.app.root.winfo_rootx() + max(0, (self.app.root.winfo_width() - w) // 2)
+            y = self.app.root.winfo_rooty() + max(0, (self.app.root.winfo_height() - h) // 2)
+            dlg.geometry(f"{w}x{h}+{x}+{y}")
+        except Exception: pass
         card = tk.Frame(dlg, bg=p["surface"], padx=16, pady=16, highlightbackground=p["border"], highlightthickness=1); card.pack(fill="both", expand=True, padx=12, pady=12)
 
         tk.Label(card, text=f"Target: {u['username']} (current: {u['role']})", bg=p["surface"], fg=p["text"], font=("Segoe UI", 9, "bold")).grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 8))

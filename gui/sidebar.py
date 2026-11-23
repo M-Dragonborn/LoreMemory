@@ -202,7 +202,7 @@ class Sidebar(tk.Frame):
             m.add_command(label="Copy Table Name", command=lambda t=tname: self._copy_to_clipboard(t))
             m.add_separator()
         m.add_command(label="New Table...", command=self.open_new_table_dialog)
-        m.add_command(label="Refresh", command=self.app.refresh_tables)
+        m.add_command(label="Refresh", command=self.app.refresh_database)
         m.tk_popup(event.x_root, event.y_root)
 
     def _copy_to_clipboard(self, text):
