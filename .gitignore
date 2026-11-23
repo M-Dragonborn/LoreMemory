@@ -6,4 +6,7 @@ dist/
 build/
 *.spec
 data/
+tests/
+ref/
+
 
