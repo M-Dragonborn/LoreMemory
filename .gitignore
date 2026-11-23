@@ -11,3 +11,5 @@ tests/
 ref/
 
 
+config.bat
+node_modules
