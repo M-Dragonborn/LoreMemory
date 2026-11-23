@@ -40,12 +40,9 @@ class Sidebar(tk.Frame):
         self.refresh_btn = ttk.Button(self.tables_hdr, text="⟳", width=2, command=self.app.refresh_database)
         self.refresh_btn.pack(side="left", padx=(6, 0))
 
-        self.new_tbl_btn = tk.Label(
-            self.tables_hdr, text=" + New Table ", font=("Segoe UI", 9, "bold"),
-            fg=p["accent_text"], bg=p["accent"], cursor="hand2", relief="flat", padx=4, pady=1
-        )
+        self.new_tbl_btn = tk.Label(self.tables_hdr, text=" + New Table ", font=("Segoe UI", 9, "bold"), fg=p["accent_text"], bg=p["accent"], cursor="hand2", relief="flat", padx=4, pady=1)
         self.new_tbl_btn.pack(side="right")
-        self.new_tbl_btn.bind("<Button-1>", lambda e: self.open_new_table_dialog())
+        self.new_tbl_btn.bind("<Button-1>", lambda e: self.after(10, self.open_new_table_dialog))
 
         # Bottom Bar: Symmetrical user profile & balanced action toolbar
         self.bottom_frame = tk.Frame(self, bg=p["panel"], padx=6, pady=6, highlightbackground=p["border"], highlightthickness=1)
@@ -229,13 +226,16 @@ class Sidebar(tk.Frame):
             if sel: self.tree.selection_remove(sel)
 
     def open_new_table_dialog(self):
-        if not self.app.db.con:
+        if not self.app.db or not self.app.db.con:
             messagebox.showinfo("New Table", "Please open or create a database first.", parent=self.app.root); return
-        def create_cb(sql):
+        def create_cb(sql, tname=None):
             res = self.app.db.run(sql)
-            if res.error: messagebox.showerror("Error Creating Table", res.error, parent=self.app.root)
-            else: self.app.refresh_tables(); self.app.update_pending()
-        NewTableDialog(self.app.root, create_cb)
+            if res.error: messagebox.showerror("Error Creating Table", res.error, parent=self.app.root); return False
+            self.app.refresh_tables(); self.app.update_pending()
+            if tname: self.select_table_by_name(tname); self.app.open_tab("table", tname)
+            return True
+        try: NewTableDialog(self.app.root, create_cb)
+        except Exception as e: messagebox.showerror("New Table Error", str(e), parent=self.app.root)
 
     def toggle_collapse(self): self.app.toggle_sidebar()
 

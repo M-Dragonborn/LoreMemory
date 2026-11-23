@@ -14,7 +14,8 @@ class RowDialog(tk.Toplevel):
         p = get_palette()
         self.configure(bg=p["bg"])
         self.transient(parent)
-        self.grab_set()
+        try: self.grab_set()
+        except Exception: pass
 
         card = tk.Frame(
             self, bg=p["surface"], padx=16, pady=16,
@@ -93,7 +94,8 @@ class NewTableDialog(tk.Toplevel):
         p = get_palette()
         self.configure(bg=p["bg"])
         self.transient(parent)
-        self.grab_set()
+        try: self.grab_set()
+        except Exception: pass
 
         card = tk.Frame(
             self, bg=p["surface"], padx=16, pady=16,
@@ -124,6 +126,14 @@ class NewTableDialog(tk.Toplevel):
         ttk.Button(btn_frame, text="Cancel", command=self.destroy).pack(side="right", padx=(8, 0))
         ttk.Button(btn_frame, text="Create Table", style="Run.TButton", command=self.do_create).pack(side="right")
 
+        self.update_idletasks()
+        try:
+            w, h = 420, 320
+            x = parent.winfo_rootx() + max(0, (parent.winfo_width() - w) // 2)
+            y = parent.winfo_rooty() + max(0, (parent.winfo_height() - h) // 2)
+            self.geometry(f"+{x}+{y}")
+        except Exception: pass
+
     def do_create(self):
         tname = self.name_entry.get().strip()
         if not tname:
@@ -135,8 +145,15 @@ class NewTableDialog(tk.Toplevel):
             return
         cols_sql = ",\n    ".join(lines)
         sql = f"CREATE TABLE \"{tname}\" (\n    {cols_sql}\n);"
-        self.on_create(sql)
-        self.destroy()
+        try:
+            res = self.on_create(sql, tname)
+        except TypeError:
+            res = self.on_create(sql)
+        except Exception as e:
+            messagebox.showerror("Error", str(e), parent=self)
+            return
+        if res is not False:
+            self.destroy()
 
 def confirm_dangerous(parent, warning_text):
     msg = f"{warning_text}\n\nDo you want to proceed?"
